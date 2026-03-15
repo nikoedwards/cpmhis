@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计算简史 | 从算盘到AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(20, 20, 35, 0.85);
+            --timeline-main: #00f5d4;
+            --branch-hardware: #ff6b6b;
+            --branch-ai: #9b5de5;
+            --branch-ml: #00bbf9;
+            --branch-llm: #f9c74f;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding-left: 180px;
+        }
+
+        /* 左侧导航栏 */
+        .side-nav {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 180px;
+            height: 100vh;
+            background: rgba(10, 10, 15, 0.95);
+            border-right: 1px solid rgba(0, 245, 212, 0.1);
+            padding: 80px 15px 30px 15px;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .nav-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--timeline-main);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 245, 212, 0.2);
+        }
+
+        .nav-list {
+            list-style: none;
+        }
+
+        .nav-list li {
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            border-left: 2px solid transparent;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: rgba(0, 245, 212, 0.1);
+            border-left-color: var(--timeline-main);
+        }
+
+        .nav-link.active {
+            color: var(--timeline-main);
+            background: rgba(0, 245, 212, 0.1);
+            border-left-color: var(--timeline-main);
+        }
+
+        /* 背景效果 */
+        .bg-effects {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-gradient {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, #0a0a0f 70%);
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--timeline-main);
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+            25% { transform: translateY(-100px) translateX(50px); opacity: 0.6; }
+            50% { transform: translateY(-200px) translateX(-30px); opacity: 0.3; }
+            75% { transform: translateY(-150px) translateX(80px); opacity: 0.5; }
+        }
+
+        /* 头部区域 */
+        header {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10;
+            padding: 20px;
+        }
+
+        .header-content {
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 0.3s forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--timeline-main), var(--branch-ai), var(--branch-llm));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+            text-shadow: 0 0 60px rgba(0, 245, 212, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-weight: 400;
+            letter-spacing: 2px;
+        }
+
+        .scroll-hint {
+            position: absolute;
+            bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+
+        .scroll-hint svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--timeline-main);
+        }
+
+        /* 主时间线 - 纵向单列布局 */
+        .timeline-container {
+            position: relative;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 80px 20px;
+            z-index: 10;
+        }
+
+        /* 纵向时间线 */
+        .timeline-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg,
+                var(--timeline-main) 0%,
+                var(--branch-ai) 25%,
+                var(--branch-ml) 50%,
+                var(--branch-llm) 75%,
+                var(--timeline-main) 100%
+            );
+            transform: translateX(-50%);
+            box-shadow: 0 0 20px var(--timeline-main), 0 0 40px rgba(0, 245, 212, 0.3);
+            opacity: 0;
+            animation: lineGrow 1.5s ease-out 0.5s forwards;
+        }
+
+        @keyframes lineGrow {
+            from {
+                transform: translateX(-50%) scaleY(0);
+            }
+            to {
+                transform: translateX(-50%) scaleY(1);
+            }
+        }
+
+        /* 分支指示 - 左侧固定 */
+        .branch-label {
+            position: absolute;
+            left: calc(50% + 30px);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 15px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+            white-space: nowrap;
+        }
+
+        .branch-label.hardware {
+            top: 5%;
+            background: rgba(255, 107, 107, 0.15);
+            border: 1px solid var(--branch-hardware);
+            color: var(--branch-hardware);
+        }
+
+        .branch-label.ai {
+            top: 20%;
+            background: rgba(155, 93, 229, 0.15);
+            border: 1px solid var(--branch-ai);
+            color: var(--branch-ai);
+        }
+
+        .branch-label.ml {
+            top: 38%;
+            background: rgba(0, 187, 249, 0.15);
+            border: 1px solid var(--branch-ml);
+            color: var(--branch-ml);
+        }
+
+        .branch-label.llm {
+            top: 65%;
+            background: rgba(249, 199, 79, 0.15);
+            border: 1px solid var(--branch-llm);
+            color: var(--branch-llm);
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        /* 时间线节点 - 纵向单列布局 */
+        .timeline-item {
+            position: relative;
+            width: 100%;
+            max-width: 650px;
+            margin: 0 auto 35px auto;
+            padding: 20px 20px 20px 60px;
+            opacity: 0;
+            transform: translateY(40px);
+        }
+
+        .timeline-item.visible {
+            animation: itemFadeIn 0.6s ease-out forwards;
+        }
+
+        @keyframes itemFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 节点圆点 - 在时间线左侧 */
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: calc(50% - 8px);
+            top: 28px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            border: 3px solid var(--timeline-main);
+            box-shadow: 0 0 15px var(--timeline-main);
+            z-index: 2;
+        }
+
+        /* 分支节点颜色 */
+        .timeline-item.branch-node::before {
+            border-color: var(--branch-ai);
+            box-shadow: 0 0 15px var(--branch-ai);
+        }
+
+        .timeline-item.ml-node::before {
+            border-color: var(--branch-ml);
+            box-shadow: 0 0 15px var(--branch-ml);
+        }
+
+        .timeline-item.llm-node::before {
+            border-color: var(--branch-llm);
+            box-shadow: 0 0 15px var(--branch-llm);
+        }
+
+        /* 连接线 */
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 44px;
+            width: 2px;
+            height: calc(100% + 30px);
+            background: linear-gradient(180deg,
+                var(--timeline-main) 0%,
+                rgba(0, 245, 212, 0.3) 100%
+            );
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+
+        .timeline-item:last-child::after {
+            display: none;
+        }
+
+        /* 里程碑卡片 - 突出显示 */
+        .milestone-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px 24px;
+            cursor: pointer;
+            transition: all 0.3s ease-out;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .milestone-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--timeline-main), var(--branch-ai));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .milestone-card:hover {
+            transform: scale(1.03) translateX(5px);
+            box-shadow: 0 20px 60px rgba(0, 245, 212, 0.15);
+            border-color: rgba(0, 245, 212, 0.3);
+        }
+
+        .milestone-card:hover::before {
+            opacity: 1;
+        }
+
+        .milestone-card.ai-card {
+            border-color: rgba(155, 93, 229, 0.3);
+        }
+
+        .milestone-card.ai-card:hover {
+            box-shadow: 0 20px 60px rgba(155, 93, 229, 0.2);
+            border-color: rgba(155, 93, 229, 0.5);
+        }
+
+        .milestone-card.ml-card {
+            border-color: rgba(0, 187, 249, 0.3);
+        }
+
+        .milestone-card.ml-card:hover {
+            box-shadow: 0 20px 60px rgba(0, 187, 249, 0.2);
+            border-color: rgba(0, 187, 249, 0.5);
+        }
+
+        .milestone-card.llm-card {
+            border-color: rgba(249, 199, 79, 0.3);
+        }
+
+        .milestone-card.llm-card:hover {
+            box-shadow: 0 20px 60px rgba(249, 199, 79, 0.2);
+            border-color: rgba(249, 199, 79, 0.5);
+        }
+
+        .milestone-year {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--timeline-main);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        .milestone-card.ai-card .milestone-year {
+            color: var(--branch-ai);
+        }
+
+        .milestone-card.ml-card .milestone-year {
+            color: var(--branch-ml);
+        }
+
+        .milestone-card.llm-card .milestone-year {
+            color: var(--branch-llm);
+        }
+
+        .milestone-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .milestone-desc {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 里程碑节点大圆点 */
+        .timeline-item:has(.milestone-card)::before {
+            width: 20px;
+            height: 20px;
+            left: calc(50% - 10px);
+            top: 26px;
+            border-width: 4px;
+        }
+
+        /* 事件节点小圆点 */
+        .timeline-item:has(.event-card)::before {
+            width: 12px;
+            height: 12px;
+            left: calc(50% - 6px);
+            top: 30px;
+            border-width: 2px;
+        }
+
+        /* 中间事件 - 居中显示 */
+        .event-card {
+            background: rgba(15, 15, 25, 0.6);
+            border-radius: 10px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .event-card:hover {
+            background: rgba(25, 25, 40, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: scale(1.02);
+        }
+
+        .event-year {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .event-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .event-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .event-card:hover .event-desc {
+            -webkit-line-clamp: 3;
+        }
+
+        /* 详情面板 */
+        .detail-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .detail-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .detail-panel {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            width: min(90%, 600px);
+            max-height: 70vh;
+            background: var(--bg-secondary);
+            border-radius: 24px 24px 0 0;
+            padding: 40px;
+            z-index: 101;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+        }
+
+        .detail-panel.active {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .detail-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .detail-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .detail-close svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--text-primary);
+        }
+
+        .detail-image {
+            width: 100%;
+            max-height: 250px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            object-fit: cover;
+            display: none;
+        }
+
+        .detail-image.has-image {
+            display: block;
+        }
+
+        .detail-year {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--timeline-main);
+            margin-bottom: 8px;
+            letter-spacing: 3px;
+        }
+
+        .detail-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .detail-content {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .detail-content p {
+            margin-bottom: 16px;
+        }
+
+        /* 分支连接线 */
+        .branch-connector {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, var(--timeline-main), var(--branch-ai));
+            opacity: 0.5;
+        }
+
+        /* 分支点 */
+        .fork-indicator {
+            display: flex;
+            justify-content: center;
+            padding: 30px 0;
+            opacity: 0;
+        }
+
+        .fork-indicator.visible {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .fork-icons {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .fork-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fork-icon .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .fork-icon .dot.main {
+            background: var(--timeline-main);
+            box-shadow: 0 0 10px var(--timeline-main);
+        }
+
+        .fork-icon .dot.ai {
+            background: var(--branch-ai);
+            box-shadow: 0 0 10px var(--branch-ai);
+        }
+
+        .fork-icon .dot.ml {
+            background: var(--branch-ml);
+            box-shadow: 0 0 10px var(--branch-ml);
+        }
+
+        .fork-icon .dot.llm {
+            background: var(--branch-llm);
+            box-shadow: 0 0 10px var(--branch-llm);
+        }
+
+        .fork-icon span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* 页脚 */
+        footer {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        footer p {
+            margin-bottom: 10px;
+        }
+
+        /* 时代标记 */
+        .era-marker {
+            position: absolute;
+            left: calc(50% + 30px);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            opacity: 0.3;
+            z-index: 5;
+            white-space: nowrap;
+            transition: opacity 0.3s ease;
+        }
+
+        .era-marker.active {
+            opacity: 1;
+        }
+
+        .era-marker span {
+            display: block;
+            padding: 4px 12px;
+            background: rgba(0, 245, 212, 1);
+            border-radius: 12px;
+            color: var(--bg-primary);
+            font-weight: 700;
+        }
+
+        .era-marker#era-human { top: 2%; }
+        .era-marker#era-pre { top: 10%; }
+        .era-marker#era-1940 { top: 16%; }
+        .era-marker#era-1950 { top: 26%; }
+        .era-marker#era-1960 { top: 36%; }
+        .era-marker#era-1970 { top: 46%; }
+        .era-marker#era-1980 { top: 56%; }
+        .era-marker#era-1990 { top: 66%; }
+        .era-marker#era-2000 { top: 76%; }
+        .era-marker#era-2010 { top: 86%; }
+        .era-marker#era-2020 { top: 96%; }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            body {
+                padding-left: 0;
+            }
+
+            .side-nav {
+                display: none;
+            }
+
+            .timeline-line {
+                left: 20px;
+            }
+
+            .timeline-item {
+                padding-left: 45px !important;
+            }
+
+            /* 里程碑节点 */
+            .timeline-item:has(.milestone-card)::before {
+                left: 6px !important;
+                top: 30px !important;
+            }
+
+            /* 事件节点 */
+            .timeline-item:has(.event-card)::before {
+                left: 10px !important;
+                top: 32px !important;
+            }
+
+            /* 连接线 */
+            .timeline-item::after {
+                left: 14px !important;
+            }
+
+            .milestone-card,
+            .event-card {
+                width: 100%;
+            }
+
+            .branch-label {
+                left: 40px;
+                font-size: 0.65rem;
+            }
+
+            .milestone-title {
+                font-size: 1.2rem;
+            }
+
+            h1 {
+                letter-spacing: 2px;
+            }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 245, 212, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 245, 212, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- 左侧导航栏 -->
+    <nav class="side-nav">
+        <div class="nav-title">时代导航</div>
+        <ul class="nav-list">
+            <li><a href="#era-human" class="nav-link">人工计算</a></li>
+            <li><a href="#era-pre" class="nav-link">机械计算</a></li>
+            <li><a href="#era-1940" class="nav-link">电子计算时代</a></li>
+            <li><a href="#era-1950" class="nav-link">晶体管时代</a></li>
+            <li><a href="#era-1960" class="nav-link">集成电路时代</a></li>
+            <li><a href="#era-1970" class="nav-link">个人电脑时代</a></li>
+            <li><a href="#era-1980" class="nav-link">图形界面时代</a></li>
+            <li><a href="#era-1990" class="nav-link">互联网时代</a></li>
+            <li><a href="#era-2000" class="nav-link">移动互联网</a></li>
+            <li><a href="#era-2010" class="nav-link">AI 复兴</a></li>
+            <li><a href="#era-2020" class="nav-link">大模型时代</a></li>
+        </ul>
+    </nav>
+
+    <div class="bg-effects">
+        <div class="bg-gradient"></div>
+    </div>
+
+    <header>
+        <div class="header-content">
+            <h1>计算机发展史</h1>
+            <p class="subtitle">从差分机到 ChatGPT · 1822 - 2026</p>
+        </div>
+        <div class="scroll-hint">
+            <span>向下滚动探索</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <path d="M12 5v14M19 12l-7 7-7-7"/>
+            </svg>
+        </div>
+    </header>
+
+    <main class="timeline-container">
+        <div class="timeline-line"></div>
+
+        <!-- 时代锚点 -->
+        <div class="era-marker" id="era-human"><span>人工计算</span></div>
+        <div class="era-marker" id="era-pre"><span>机械计算</span></div>
+        <div class="era-marker" id="era-1940"><span>电子计算</span></div>
+        <div class="era-marker" id="era-1950"><span>晶体管</span></div>
+        <div class="era-marker" id="era-1960"><span>集成电路</span></div>
+        <div class="era-marker" id="era-1970"><span>个人电脑</span></div>
+        <div class="era-marker" id="era-1980"><span>图形界面</span></div>
+        <div class="era-marker" id="era-1990"><span>互联网</span></div>
+        <div class="era-marker" id="era-2000"><span>移动互联网</span></div>
+        <div class="era-marker" id="era-2010"><span>AI复兴</span></div>
+        <div class="era-marker" id="era-2020"><span>大模型</span></div>
+
+        <span class="branch-label hardware">硬件与计算</span>
+        <span class="branch-label ai">人工智能</span>
+        <span class="branch-label ml">机器学习</span>
+        <span class="branch-label llm">大语言模型</span>
+
+        <!-- 人工计算时代 -->
+        <div class="timeline-item" style="animation-delay: 0.01s" id="era-human-item">
+            <div class="milestone-card" data-year="史前-1800" data-title="人工计算时代" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Suanpan%281%29.jpg/800px-Suanpan%281%29.jpg" data-detail="<p>在电子计算机出现之前，&quot;Computer&quot;这个词指的是&quot;计算员&quot;——专门负责算数的人。在天文、航海、工程领域，雇佣大量&quot;人肉计算员&quot;。一个导弹弹道计算可能需要几十个人算几周。</p><p><strong>算盘</strong>（约公元前2700年）：最古老的计算工具之一，中国古代发明，使用珠子计数。</p><p><strong>算筹</strong>（约公元前500年）：中国古代使用竹筹进行计算。</p>">
+                <div class="milestone-year">史前 - 1800</div>
+                <div class="milestone-title">人工计算时代</div>
+                <div class="milestone-desc">"Computer" 曾指人，古代计算工具的演进</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" style="animation-delay: 0.02s">
+            <div class="event-card" data-year="1614" data-title="对数表" data-type="event" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Napiers_Bones.jpg/1200px-Napiers_Bones.jpg" data-detail="<p>苏格兰数学家约翰·纳皮尔发明了对数，大大简化了乘除法等复杂计算。</p><p>对数的核心思想是将乘法转换为加法，将除法转换为减法。这一发明使得天文学家、航海家能够更快速地进行大规模数值计算。</p>">
+                <div class="event-year">1614</div>
+                <div class="event-title">对数表</div>
+                <div class="event-desc">约翰·纳皮尔发明对数，简化复杂计算</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" style="animation-delay: 0.03s">
+            <div class="event-card" data-year="1622" data-title="计算尺" data-type="event" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Slide_rule.jpg/1200px-Slide_rule.jpg" data-detail="<p>英国数学家威廉·奥特雷德发明了计算尺，这是世界上第一个模拟计算工具。</p><p>计算尺利用对数原理，可以进行乘除法、三角函数等计算。在电子计算器出现之前，它是工程师和科学家的必备工具。</p>">
+                <div class="event-year">1622</div>
+                <div class="event-title">计算尺</div>
+                <div class="event-desc">威廉·奥特雷德发明，第一个模拟计算工具</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" style="animation-delay: 0.04s">
+            <div class="event-card" data-year="1642" data-title="机械计算器" data-type="event" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Pascaline_front_view.jpg/1200px-Pascaline_front_view.jpg" data-detail="<p>法国数学家布莱兹·帕斯卡发明了帕斯卡林（Pascaline），这是世界上第一台机械计算器。</p><p>这台机器使用齿轮和杠杆进行加减法运算，能够自动进位。帕斯卡为它设计了50多种型号，主要用于税务计算。</p>">
+                <div class="event-year">1642</div>
+                <div class="event-title">机械计算器</div>
+                <div class="event-desc">帕斯卡发明帕斯卡林，第一台机械计算器</div>
+            </div>
+        </div>
+
+        <!-- 早期计算历史 -->
+        <div class="timeline-item" style="animation-delay: 0.05s" id="era-pre-item">
+            <div class="milestone-card" data-year="1822" data-title="差分机 No.1" data-type="main" data-detail="<p>英国数学家查尔斯·巴贝奇设计了这台机械式计算机，能够自动计算多项式函数的值。</p><p>差分机使用齿轮和杠杆进行计算，被认为是世界上第一台机械计算机。虽然最终未能完成，但它的设计理念影响了后来的计算机发展。</p>">
+                <div class="milestone-year">1822</div>
+                <div class="milestone-title">差分机 No.1</div>
+                <div class="milestone-desc">机械计算机的先驱，巴贝奇的伟大尝试</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" style="animation-delay: 0.08s">
+            <div class="event-card" data-year="1843" data-title="艾达·洛芙莱斯" data-type="event" data-detail="<p>艾达·洛芙莱斯发表了第一篇计算机程序，为查尔斯·巴贝奇的差分机编写了算法。</p><p>她被认为是世界上第一位程序员，她编写的伯努利数算法至今仍被认为是第一个计算机程序。</p>">
+                <div class="event-year">1843</div>
+                <div class="event-title">第一位程序员</div>
+                <div class="event-desc">艾达·洛芙莱斯与伯努利数算法</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" style="animation-delay: 0.1s">
+            <div class="event-card" data-year="1890" data-title="穿孔卡片制表机" data-type="event" data-detail="<p>赫尔曼·霍尔瑞斯发明了穿孔卡片制表机，用于美国人口普查。</p><p>这台机器使用穿孔卡片存储数据，将计算速度提高了10倍，标志着数据处理自动化的开始。</p>">
+                <div class="event-year">1890</div>
+                <div class="event-title">穿孔卡片制表机</div>
+                <div class="event-desc">数据处理自动化的开端</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" style="animation-delay: 0.12s">
+            <div class="event-card" data-year="1936" data-title="图灵机模型" data-type="event" data-detail="<p>艾伦·图灵发表了论文《论可计算数》，提出了图灵机的概念。</p><p>图灵机为计算理论奠定了基础，证明了通用计算机的可能性，是现代计算机科学的理论基石。</p>">
+                <div class="event-year">1936</div>
+                <div class="event-title">图灵机模型</div>
+                <div class="event-desc">计算理论的开创性工作</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" style="animation-delay: 0.14s">
+            <div class="event-card" data-year="1938" data-title="Z1 计算机" data-type="event" data-detail="<p>德国工程师康拉德·楚泽建造了Z1，这是第一台可工作的二进制可编程机械计算机。</p><p>Z1使用滑动元件而非齿轮，是现代计算机的直接祖先之一。</p>">
+                <div class="event-year">1938</div>
+                <div class="event-title">Z1 计算机</div>
+                <div class="event-desc">第一台二进制可编程计算机</div>
+            </div>
+        </div>
+
+        <!-- 1940s -->
+        <div class="timeline-item" style="animation-delay: 0.16s" id="era-1940-item">
+            <div class="milestone-card" data-year="1940" data-title="ENIAC 诞生" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/ENIAC_Punchcard.jpg/1200px-ENIAC_Punchcard.jpg" data-detail="<p>ENIAC（Electronic Numerical Integrator and Computer）是世界上第一台通用电子计算机，由宾夕法尼亚大学的莫奇利和埃克特设计建造。</p><p>这台机器重达30吨，占据了167平方米的面积，拥有18000个真空管，每秒可执行5000次加法运算。它的诞生标志着电子计算时代的开始。</p><p>ENIAC最初是为美国陆军计算弹道轨迹而设计的，但它的通用性为后来的计算机发展奠定了基础。</p>">
+                <div class="milestone-year">1940</div>
+                <div class="milestone-title">ENIAC 诞生</div>
+                <div class="milestone-desc">世界上第一台通用电子计算机，每秒5000次加法运算</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 0.15s">
+            <div class="event-card" data-year="1942" data-title="ABC 计算机" data-type="event" data-detail="<p>Atanasoff-Berry Computer (ABC) 是第一台电子数字计算机，由约翰·文森特·阿塔纳索夫和克利福德·贝里于1942年完成。</p><p>它专门用于求解线性方程组，虽然不是通用计算机，但使用了二进制、存储电容等创新概念，对后来的计算机设计产生了深远影响。</p>">
+                <div class="event-year">1942</div>
+                <div class="event-title">ABC 计算机</div>
+                <div class="event-desc">第一台电子数字计算机</div>
+            </div>
+        </div>
+
+        <!-- 1947 -->
+        <div class="timeline-item left" style="animation-delay: 0.2s">
+            <div class="event-card" data-year="1947" data-title="晶体管发明" data-type="event" data-detail="<p>贝尔实验室的约翰·巴丁、沃尔特·布拉顿和威廉·肖克利发明了晶体管，这一发明彻底改变了电子设备的形态。</p><p>晶体管相比真空管体积更小、功耗更低、可靠性更高，为现代计算机的小型化奠定了物理基础。三位发明者因此获得了1956年诺贝尔物理学奖。</p>">
+                <div class="event-year">1947</div>
+                <div class="event-title">晶体管发明</div>
+                <div class="event-desc">现代电子学的重要里程碑</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 0.25s">
+            <div class="milestone-card" data-year="1949" data-title="EDSAC 运行" data-type="main" data-detail="<p>EDSAC（Electronic Delay Storage Automatic Calculator）是世界上第一台实际运行的存储程序计算机，由剑桥大学的莫里斯·威尔克斯建造。</p><p>它首次实现了冯·诺依曼架构的核心思想：程序和数据存储在同一个存储器中。这标志着现代计算机体系结构的诞生。</p>">
+                <div class="milestone-year">1949</div>
+                <div class="milestone-title">EDSAC 运行</div>
+                <div class="milestone-desc">第一台存储程序计算机，冯·诺依曼架构诞生</div>
+            </div>
+        </div>
+
+        <!-- 1950s -->
+        <div class="timeline-item left" style="animation-delay: 0.3s">
+            <div class="event-card" data-year="1950" data-title="图灵测试" data-type="event" data-detail="<p>艾伦·图灵发表了著名论文《计算机器与智能》，提出了图灵测试作为判断机器是否具有智能的标准。</p><p>图灵测试的核心思想是：如果人类与机器进行对话时无法区分对方是人类还是机器，则认为机器具有智能。这一概念至今仍是人工智能研究的重要参考。</p>">
+                <div class="event-year">1950</div>
+                <div class="event-title">图灵测试提出</div>
+                <div class="event-desc">人工智能哲学基础的建立</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 0.35s">
+            <div class="event-card" data-year="1953" data-title="IBM 701" data-type="event" data-detail="<p>IBM发布了其第一台科学计算机IBM 701，标志着商业计算机时代的开始。</p><p>IBM 701采用静电存储管，配备磁带驱动器，成为当时最受欢迎的计算机之一。它为IBM在计算机行业的霸主地位奠定了基础。</p>">
+                <div class="event-year">1953</div>
+                <div class="event-title">IBM 701 发布</div>
+                <div class="event-desc">IBM 进入计算机领域</div>
+            </div>
+        </div>
+
+        <!-- 1956 - AI 分支开始 -->
+        <div class="timeline-item left branch-node" style="animation-delay: 0.4s">
+            <div class="milestone-card ai-card" data-year="1956" data-title="达特茅斯会议" data-type="ai" data-detail="<p>1956年夏天，约翰·麦卡锡、马文·明斯基、克劳德·香农等人在达特茅斯学院举办了为期两个月的研讨会。</p><p>这次会议被视为人工智能作为独立学科的诞生时刻。会议正式提出了「人工智能」（Artificial Intelligence）这一术语，确立了AI研究的基本方向。</p><p>与会者包括艾伦·纽厄尔、赫伯特·西蒙等先驱人物，他们后来都成为人工智能领域的奠基人。</p>">
+                <div class="milestone-year">1956</div>
+                <div class="milestone-title">达特茅斯会议</div>
+                <div class="milestone-desc">人工智能学科诞生，开启智能时代</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 0.45s">
+            <div class="event-card" data-year="1957" data-title="FORTRAN 语言" data-type="event" data-detail="<p>约翰·巴科斯在IBM开发了FORTRAN（Formula Translation），这是第一种高级编程语言。</p><p>FORTRAN使科学家和工程师能够用数学公式形式编写程序，大大提高了编程效率。它至今仍在科学计算领域使用，是编程语言史上的里程碑。</p>">
+                <div class="event-year">1957</div>
+                <div class="event-title">FORTRAN 诞生</div>
+                <div class="event-desc">第一种高级编程语言</div>
+            </div>
+        </div>
+
+        <!-- 1958 -->
+        <div class="timeline-item left" style="animation-delay: 0.5s">
+            <div class="milestone-card" data-year="1958" data-title="集成电路发明" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Intel_4004.jpg/800px-Intel_4004.jpg" data-detail="<p>杰克·基尔比在德州仪器发明了集成电路（IC），将多个晶体管集成在一个半导体芯片上。</p><p>这一发明开启了微电子革命，使计算机的体积大幅缩小、成本显著降低、可靠性大幅提升。基尔比因此获得2000年诺贝尔物理学奖。</p>">
+                <div class="milestone-year">1958</div>
+                <div class="milestone-title">集成电路发明</div>
+                <div class="milestone-desc">微电子革命的开端，计算机小型化基础</div>
+            </div>
+        </div>
+
+        <!-- 1959 - ML 分支 -->
+        <div class="timeline-item right ml-node" style="animation-delay: 0.55s">
+            <div class="milestone-card ml-card" data-year="1959" data-title="机器学习概念" data-type="ml" data-detail="<p>亚瑟·塞缪尔在IBM提出了「机器学习」（Machine Learning）的概念，将其定义为「让计算机具有无需明确编程就能学习的能力」。</p><p>塞缪尔开发了第一个自学习程序——跳棋程序，能够通过自我对弈不断改进棋艺。这标志着机器学习作为独立研究领域的诞生。</p><p>他同时提出了「弱人工智能」的概念，预见了未来AI发展的两个方向。</p>">
+                <div class="milestone-year">1959</div>
+                <div class="milestone-title">机器学习概念诞生</div>
+                <div class="milestone-desc">塞缪尔提出ML概念，AI研究的新分支</div>
+            </div>
+        </div>
+
+        <!-- 1960s -->
+        <div class="timeline-item left" style="animation-delay: 0.6s">
+            <div class="event-card" data-year="1964" data-title="UNIX 诞生" data-type="event" data-detail="<p>肯·汤普森和丹尼斯·里奇在贝尔实验室开发了UNIX操作系统。</p><p>UNIX以其简洁的设计、强大的网络功能和良好的可移植性影响了整个软件行业。它的设计哲学至今仍影响着现代操作系统的开发。</p>">
+                <div class="event-year">1964</div>
+                <div class="event-title">UNIX 诞生</div>
+                <div class="event-desc">操作系统设计的里程碑</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 0.65s">
+            <div class="event-card" data-year="1965" data-title="摩尔定律" data-type="event" data-detail="<p>戈登·摩尔在《电子学》杂志上发表论文，提出了著名的「摩尔定律」：集成电路上晶体管数量每两年翻一番。</p><p>这一预测在过去的半个世纪里基本准确，推动了计算机性能的指数级增长，成为半导体行业发展的指导原则。</p>">
+                <div class="event-year">1965</div>
+                <div class="event-title">摩尔定律提出</div>
+                <div class="event-desc">半导体行业的指导法则</div>
+            </div>
+        </div>
+
+        <div class="timeline-item left" style="animation-delay: 0.7s">
+            <div class="milestone-card" data-year="1969" data-title="ARPANET" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/ARPANET_Log.svg/1200px-ARPANET_Log.svg.png" data-detail="<p>ARPANET在美国国防高级研究计划局（DARPA）的资助下建立，是世界上第一个分组交换网络。</p><p>ARPANET首次实现了不同计算机之间的数据包传输，奠定了现代互联网的基础。1970年代，它发展成为互联网的核心协议TCP/IP。</p>">
+                <div class="milestone-year">1969</div>
+                <div class="milestone-title">ARPANET 启动</div>
+                <div class="milestone-desc">互联网前身，第一个分组交换网络</div>
+            </div>
+        </div>
+
+        <!-- 1970s -->
+        <div class="timeline-item right" style="animation-delay: 0.75s">
+            <div class="event-card" data-year="1971" data-title="微处理器" data-type="event" data-detail="<p>英特尔发布了4004微处理器，这是第一个商业化的通用微处理器。</p><p>4004包含2300个晶体管，能够执行4位运算，标志着计算机进入微型化时代。它为个人电脑的诞生铺平了道路。</p>">
+                <div class="event-year">1971</div>
+                <div class="event-title">Intel 4004 发布</div>
+                <div class="event-desc">第一个商业微处理器</div>
+            </div>
+        </div>
+
+        <div class="timeline-item left" style="animation-delay: 0.8s">
+            <div class="event-card" data-year="1975" data-title="微软成立" data-type="event" data-detail="<p>比尔·盖茨和保罗·艾伦在新墨西哥州阿尔伯克基创立了微软（Microsoft）。</p><p>微软最初为Altair 8800开发BASIC解释器，后来成为全球最大的软件公司，其Windows操作系统统治了个人电脑时代。</p>">
+                <div class="event-year">1975</div>
+                <div class="event-title">微软成立</div>
+                <div class="event-desc">软件巨头诞生</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 0.85s">
+            <div class="milestone-card" data-year="1976" data-title="Apple I" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Apple_I_Computer.jpg/1200px-Apple_I_Computer.jpg" data-detail="<p>史蒂夫·沃兹尼亚克设计了Apple I，这是第一台面向个人用户的有电路板的微型计算机。</p><p>虽然只生产了约200台，但它开启了个人电脑革命。沃兹尼亚克坚持开放设计理念，拒绝封闭系统，这在当时是革命性的。</p><p>同年，史蒂夫·乔布斯创立了苹果电脑公司。</p>">
+                <div class="milestone-year">1976</div>
+                <div class="milestone-title">Apple I 发布</div>
+                <div class="milestone-desc">个人电脑革命的开端</div>
+            </div>
+        </div>
+
+        <!-- 1980s -->
+        <div class="timeline-item left" style="animation-delay: 0.9s">
+            <div class="event-card" data-year="1981" data-title="IBM PC" data-type="event" data-detail="<p>IBM发布了IBM PC（Personal Computer），采用英特尔处理器和微软DOS操作系统。</p><p>IBM PC确立了个人电脑的行业标准，其开放式架构允许其他厂商生产兼容机，催生了庞大的PC产业生态。</p>">
+                <div class="event-year">1981</div>
+                <div class="event-title">IBM PC 发布</div>
+                <div class="event-desc">个人电脑行业标准确立</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 0.95s">
+            <div class="milestone-card" data-year="1984" data-title="Macintosh" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Macintosh_128k.png/1200px-Macintosh_128k.png" data-detail="<p>苹果公司发布了 Macintosh，这是第一台大众化使用图形用户界面（GUI）的个人电脑。</p><p>Macintosh采用了革命性的图形界面、鼠标操作和窗口系统，使普通用户也能轻松使用电脑。它开创了现代个人电脑的交互范式。</p>">
+                <div class="milestone-year">1984</div>
+                <div class="milestone-title">Macintosh 发布</div>
+                <div class="milestone-desc">图形界面时代开启，个人电脑普及</div>
+            </div>
+        </div>
+
+        <!-- 1990s -->
+        <div class="timeline-item left" style="animation-delay: 1s">
+            <div class="milestone-card" data-year="1991" data-title="万维网 WWW" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/First_Web_Server.jpg/1200px-First_Web_Server.jpg" data-detail="<p>蒂姆·伯纳斯-李在欧洲核子研究组织（CERN）发明了万维网（World Wide Web），包括HTML、URL和HTTP协议。</p><p>WWW的发明使互联网变得易于使用，催生了信息时代的爆炸式增长。伯纳斯-李免费公开了这项技术，推动了互联网的全球普及。</p>">
+                <div class="milestone-year">1991</div>
+                <div class="milestone-title">万维网 WWW 诞生</div>
+                <div class="milestone-desc">信息时代来临，互联网走向大众</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 1.05s">
+            <div class="event-card" data-year="1993" data-title="Mosaic 浏览器" data-type="event" data-detail="<p>NCSA Mosaic成为第一个流行的图形化网页浏览器，首次在普通用户中普及了Web浏览。</p><p>Mosaic由马克·安德森开发，首次实现了图片内嵌显示，为后来的Netscape Navigator和互联网繁荣奠定了基础。</p>">
+                <div class="event-year">1993</div>
+                <div class="event-title">Mosaic 浏览器</div>
+                <div class="event-desc">第一个图形化网页浏览器</div>
+            </div>
+        </div>
+
+        <!-- 1997 - AI 里程碑 -->
+        <div class="timeline-item left branch-node" style="animation-delay: 1.1s">
+            <div class="milestone-card ai-card" data-year="1997" data-title="深蓝击败卡斯帕罗夫" data-type="ai" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Deep_Blue.jpg/1200px-Deep_Blue.jpg" data-detail="<p>IBM的深蓝（Deep Blue）超级计算机在国际象棋比赛中击败了世界冠军加里·卡斯帕罗夫。</p><p>这是人工智能在智力游戏中首次战胜人类顶尖选手，标志着计算机在特定领域达到了超人类水平。尽管「狭义AI」无法真正「思考」，但这一成就仍然震撼了世界。</p><p>深蓝每秒能计算2亿步棋，采用了大规模并行处理和高级评估函数。</p>">
+                <div class="milestone-year">1997</div>
+                <div class="milestone-title">深蓝击败人类冠军</div>
+                <div class="milestone-desc">AI在智力游戏领域首次超越人类</div>
+            </div>
+        </div>
+
+        <!-- 2000s -->
+        <div class="timeline-item right" style="animation-delay: 1.15s">
+            <div class="event-card" data-year="2000" data-title="WiFi 标准" data-type="event" data-detail="<p>IEEE 802.11b无线网络标准确立，开启了无线互联网时代。</p><p>WiFi技术使设备能够无线连接网络，彻底改变了我们使用互联网的方式，成为现代生活不可或缺的技術。</p>">
+                <div class="event-year">2000</div>
+                <div class="event-title">WiFi 普及</div>
+                <div class="event-desc">无线互联网时代开启</div>
+            </div>
+        </div>
+
+        <div class="timeline-item left" style="animation-delay: 1.2s">
+            <div class="event-card" data-year="2004" data-title="Facebook 成立" data-type="event" data-detail="<p>马克·扎克伯格在哈佛大学创立了Facebook，社交媒体时代正式开启。</p><p>Facebook改变了人类社交方式，创造了社交网络这一全新的互联网形态，对政治、经济、文化都产生了深远影响。</p>">
+                <div class="event-year">2004</div>
+                <div class="event-title">Facebook 成立</div>
+                <div class="event-desc">社交网络时代开启</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 1.25s">
+            <div class="milestone-card" data-year="2007" data-title="iPhone 发布" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/IPhone_1st_Gen.svg/1200px-IPhone_1st_Gen.svg.png" data-detail="<p>苹果公司发布了第一代iPhone，重新定义了智能手机。</p><p>iPhone采用了革命性的触控界面、App Store生态系统和移动Web体验，催生了移动互联网时代。它不仅是一部手机，更是个人计算设备的一次革命。</p>">
+                <div class="milestone-year">2007</div>
+                <div class="milestone-title">iPhone 发布</div>
+                <div class="milestone-desc">移动互联网时代全面开启</div>
+            </div>
+        </div>
+
+        <!-- 2010s -->
+        <div class="timeline-item left" style="animation-delay: 1.3s">
+            <div class="event-card" data-year="2008" data-title="比特币诞生" data-type="event" data-detail="<p>中本聪发布了比特币白皮书，并挖出了第一个区块——创世区块。</p><p>比特币作为第一种去中心化的加密货币，开启了区块链技术时代，对金融、科技都产生了深远影响。</p>">
+                <div class="event-year">2008</div>
+                <div class="event-title">比特币诞生</div>
+                <div class="event-desc">区块链技术时代开启</div>
+            </div>
+        </div>
+
+        <!-- 2012 - 深度学习突破 -->
+        <div class="timeline-item right ml-node" style="animation-delay: 1.35s">
+            <div class="milestone-card ml-card" data-year="2012" data-title="AlexNet 深度学习" data-type="ml" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Artificial_neural_network.svg/1200px-Artificial_neural_network.svg.png" data-detail="<p>AlexNet在ImageNet图像分类挑战赛中以压倒性优势夺冠，错误率仅为15.3%，比第二名低10个百分点。</p><p>这一突破标志着深度学习时代的到来。AlexNet采用了GPU加速训练和ReLU激活函数，首次证明了深度卷积神经网络在大规模视觉识别中的强大能力。</p><p>它的成功引发了深度学习在计算机视觉、语音识别、自然语言处理等领域的革命。</p>">
+                <div class="milestone-year">2012</div>
+                <div class="milestone-title">AlexNet 深度学习突破</div>
+                <div class="milestone-desc">深度学习时代的里程碑，AI复兴开始</div>
+            </div>
+        </div>
+
+        <div class="timeline-item left" style="animation-delay: 1.4s">
+            <div class="event-card" data-year="2013" data-title="深度学习爆发" data-type="event" data-detail="<p>深度学习技术在语音识别、图像分类、自然语言处理等领域全面突破。</p><p>谷歌、微软、百度等公司纷纷将深度学习应用于产品，人工智能开始从实验室走向大众生活。</p>">
+                <div class="event-year">2013</div>
+                <div class="event-title">深度学习技术爆发</div>
+                <div class="event-desc">AI 走向商业应用</div>
+            </div>
+        </div>
+
+        <div class="timeline-item right" style="animation-delay: 1.45s">
+            <div class="event-card" data-year="2015" data-title="AlphaGo" data-type="event" data-detail="<p>DeepMind开发的人工智能程序AlphaGo开始挑战人类围棋顶尖选手。</p><p>围棋被认为是人工智能最难攻克的棋类，AlphaGo的成功证明了深度强化学习的强大能力。</p>">
+                <div class="event-year">2015</div>
+                <div class="event-title">AlphaGo 开发</div>
+                <div class="event-desc">强化学习的突破</div>
+            </div>
+        </div>
+
+        <!-- 2016 - AlphaGo -->
+        <div class="timeline-item left branch-node" style="animation-delay: 1.5s">
+            <div class="milestone-card ai-card" data-year="2016" data-title="AlphaGo 击败李世石" data-type="ai" data-image="https://storage.googleapis.com/deepmind-media/AlphaGo/AlphaGo-vs-Lee-Sedol.jpg" data-detail="<p>AlphaGo在五番棋比赛中以4:1击败了世界围棋冠军李世石。</p><p>这一成就比深蓝击败卡斯帕罗夫更具划时代意义，因为围棋的可能性数量远超国际象棋，传统的暴力搜索方法无法胜任。AlphaGo采用了深度神经网络和蒙特卡洛树搜索的结合，展示了深度强化学习的无限潜力。</p><p>它标志着人工智能在需要「直觉」和「创意」的领域也能超越人类。</p>">
+                <div class="milestone-year">2016</div>
+                <div class="milestone-title">AlphaGo 击败李世石</div>
+                <div class="milestone-desc">AI 在复杂策略游戏超越人类</div>
+            </div>
+        </div>
+
+        <!-- 2017 - Transformer -->
+        <div class="timeline-item right ml-node" style="animation-delay: 1.55s">
+            <div class="milestone-card ml-card" data-year="2017" data-title="Transformer 架构" data-type="ml" data-detail="<p>谷歌发布了论文《Attention Is All You Need》，提出了Transformer架构。</p><p>Transformer彻底改变了自然语言处理领域，它摒弃了传统的循环神经网络结构，完全基于注意力机制。其并行计算能力使大规模预训练成为可能。</p><p>Transformer成为现代大语言模型的基础架构，BERT、GPT等模型都是基于它发展而来。可以说，没有Transformer，就没有今天的大语言模型时代。</p>">
+                <div class="milestone-year">2017</div>
+                <div class="milestone-title">Transformer 架构发布</div>
+                <div class="milestone-desc">现代NLP基石，大模型时代的开端</div>
+            </div>
+        </div>
+
+        <!-- 2018 - BERT -->
+        <div class="timeline-item left" style="animation-delay: 1.6s">
+            <div class="event-card" data-year="2018" data-title="BERT 发布" data-type="event" data-detail="<p>谷歌发布了BERT（Bidirectional Encoder Representations from Transformers），在多项NLP基准测试中刷新纪录。</p><p>BERT采用了双向Transformer编码器，能够理解词的上下文含义，开创了预训练+微调的NLP新范式。</p>">
+                <div class="event-year">2018</div>
+                <div class="event-title">BERT 发布</div>
+                <div class="event-desc">预训练语言模型时代</div>
+            </div>
+        </div>
+
+        <!-- 2020 - GPT-3 -->
+        <div class="timeline-item right llm-node" style="animation-delay: 1.65s">
+            <div class="milestone-card llm-card" data-year="2020" data-title="GPT-3 发布" data-type="llm" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/1200px-ChatGPT_logo.svg.png" data-detail="<p>OpenAI发布了GPT-3，拥有1750亿参数，是当时最大的语言模型。</p><p>GPT-3展示了惊人的「零样本」和「少样本」学习能力，能够在没有任何示例的情况下完成各种语言任务。它的出现引发了关于通用人工智能的热烈讨论。</p><p>GPT-3能够写文章、写代码、翻译、创作诗歌等，首次让公众直观感受到大语言模型的强大能力。</p>">
+                <div class="milestone-year">2020</div>
+                <div class="milestone-title">GPT-3 发布</div>
+                <div class="milestone-desc">千亿参数大模型，AI能力质变</div>
+            </div>
+        </div>
+
+        <!-- 2022 - ChatGPT -->
+        <div class="timeline-item left llm-node" style="animation-delay: 1.7s">
+            <div class="milestone-card llm-card" data-year="2022" data-title="ChatGPT 发布" data-type="llm" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/1200px-ChatGPT_logo.svg.png" data-detail="<p>OpenAI发布了ChatGPT，上线两个月用户突破1亿，成为历史上增长最快的消费级应用。</p><p>ChatGPT基于GPT-3.5，通过人类反馈强化学习（RLHF）进行微调，能够进行自然流畅的多轮对话。</p><p>它的发布标志着生成式AI进入大众视野，引发了全球性的AI革命，深刻改变了教育、编程、内容创作等行业的工作方式。</p>">
+                <div class="milestone-year">2022</div>
+                <div class="milestone-title">ChatGPT 发布</div>
+                <div class="milestone-desc">生成式AI大众化，全球AI热潮</div>
+            </div>
+        </div>
+
+        <!-- 2023 -->
+        <div class="timeline-item right" style="animation-delay: 1.75s">
+            <div class="milestone-card" data-year="2023" data-title="AI 爆发元年" data-type="main" data-image="https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/ChatGPT_logo.svg/1200px-ChatGPT_logo.svg.png" data-detail="<p>2023年被称为「AI元年」，大模型技术呈现爆发式增长。</p><p>Meta发布LLaMA 2，谷歌发布PaLM 2和Bard，国内百度发布文心一言、科大讯飞发布星火认知大模型。各大厂商纷纷入局，AI从技术研究走向实际应用。</p><p>同时，AI安全问题也引起广泛关注，监管框架开始逐步建立。</p>">
+                <div class="milestone-year">2023</div>
+                <div class="milestone-title">AI 爆发元年</div>
+                <div class="milestone-desc">百模大战，生成式AI全面爆发</div>
+            </div>
+        </div>
+
+        <div class="timeline-item left" style="animation-delay: 1.8s">
+            <div class="event-card" data-year="2023" data-title="GPT-4 发布" data-type="event" data-detail="<p>OpenAI发布GPT-4，这是一个多模态大模型，能够接受图像和文本输入。</p><p>GPT-4在各种专业和学术基准测试中表现出色，包括通过律师资格考试、GRE高分等。它的推理能力比GPT-3.5显著提升。</p>">
+                <div class="event-year">2023</div>
+                <div class="event-title">GPT-4 发布</div>
+                <div class="event-desc">多模态大模型时代</div>
+            </div>
+        </div>
+
+        <!-- 2024-2025 -->
+        <div class="timeline-item right" style="animation-delay: 1.85s">
+            <div class="event-card" data-year="2024" data-title="AI Agent 崛起" data-type="event" data-detail="<p>AI Agent（智能体）成为新的技术热点，能够自主规划、执行复杂任务。</p><p>各大厂商推出Agent产品，AI开始从「回答问题」向「完成任务」演进。Claude、GPT-4o、Gemini等模型都增强了Agent能力。</p>">
+                <div class="event-year">2024</div>
+                <div class="event-title">AI Agent 崛起</div>
+                <div class="event-desc">从对话到任务执行</div>
+            </div>
+        </div>
+
+        <div class="timeline-item left" style="animation-delay: 1.9s">
+            <div class="event-card" data-year="2025" data-title="Claude 4 / GPT-5" data-type="event" data-detail="<p>Claude 4和GPT-5等新一代大模型发布，推理能力进一步提升。</p><p>AI在各行各业的应用更加深入，从编程辅助到科学研究，从医疗诊断到艺术创作，AI正在重塑所有行业。</p>">
+                <div class="event-year">2025</div>
+                <div class="event-title">新一代大模型</div>
+                <div class="event-desc">AI 能力持续突破</div>
+            </div>
+        </div>
+
+        <!-- 2026 - 当前 -->
+        <div class="timeline-item right" style="animation-delay: 1.95s">
+            <div class="milestone-card" data-year="2026" data-title="AI 与人类协作" data-type="main" data-detail="<p>2026年，AI已经成为人类生活和工作中不可或缺的伙伴。</p><p>大语言模型、多模态模型、AI Agent等技术深度融合，AI在科学研究、工程开发、艺术创作等领域发挥着越来越重要的作用。</p><p>同时，关于AI伦理、安全和监管的讨论也在持续深化，人类正在探索与AI和谐共处的未来。</p>">
+                <div class="milestone-year">2026</div>
+                <div class="milestone-title">AI 与人类协作时代</div>
+                <div class="milestone-desc">智能与人类共创未来</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 详情面板 -->
+    <div class="detail-overlay"></div>
+    <div class="detail-panel">
+        <button class="detail-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        <img class="detail-image" src="" alt="">
+        <div class="detail-year"></div>
+        <div class="detail-title"></div>
+        <div class="detail-content"></div>
+    </div>
+
+    <footer>
+        <p>计算简史时间线 · 1822-2026</p>
+        <p>从算盘到 AI</p>
+    </footer>
+
+    <script>
+        // 创建背景粒子
+        function createParticles() {
+            const bgEffects = document.querySelector('.bg-effects');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                bgEffects.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        // 左侧导航点击滚动
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const target = document.querySelector(targetId + '-item');
+                if (target) {
+                    const headerOffset = 100;
+                    const elementPosition = target.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // 滚动时高亮导航项
+        const eras = ['era-human', 'era-pre', 'era-1940', 'era-1950', 'era-1960', 'era-1970', 'era-1980', 'era-1990', 'era-2000', 'era-2010', 'era-2020'];
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        window.addEventListener('scroll', function() {
+            let current = '';
+            eras.forEach(era => {
+                const section = document.querySelector('#' + era + '-item');
+                if (section) {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 200) {
+                        current = era;
+                    }
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+
+            // 高亮时代标记
+            document.querySelectorAll('.era-marker').forEach(marker => {
+                marker.classList.remove('active');
+                if (marker.id === current) {
+                    marker.classList.add('active');
+                }
+            });
+        });
+
+        // 滚动动画
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.timeline-item').forEach(item => {
+            observer.observe(item);
+        });
+
+        document.querySelectorAll('.fork-indicator').forEach(item => {
+            observer.observe(item);
+        });
+
+        // 详情面板
+        const detailOverlay = document.querySelector('.detail-overlay');
+        const detailPanel = document.querySelector('.detail-panel');
+        const detailClose = document.querySelector('.detail-close');
+        const detailImage = document.querySelector('.detail-image');
+        const detailYear = document.querySelector('.detail-year');
+        const detailTitle = document.querySelector('.detail-title');
+        const detailContent = document.querySelector('.detail-content');
+
+        function openDetail(data) {
+            detailYear.textContent = data.year;
+            detailTitle.textContent = data.title;
+            detailContent.innerHTML = data.detail;
+
+            // 显示图片
+            if (data.image) {
+                detailImage.src = data.image;
+                detailImage.classList.add('has-image');
+            } else {
+                detailImage.src = '';
+                detailImage.classList.remove('has-image');
+            }
+
+            detailOverlay.classList.add('active');
+            detailPanel.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDetail() {
+            detailOverlay.classList.remove('active');
+            detailPanel.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        document.querySelectorAll('.milestone-card, .event-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const data = {
+                    year: this.dataset.year,
+                    title: this.dataset.title,
+                    detail: this.dataset.detail,
+                    image: this.dataset.image || null
+                };
+                openDetail(data);
+            });
+        });
+
+        detailClose.addEventListener('click', closeDetail);
+        detailOverlay.addEventListener('click', closeDetail);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeDetail();
+        });
+
+        // 点击时间线节点也可以打开详情
+        document.querySelectorAll('.timeline-item').forEach(item => {
+            const card = item.querySelector('.milestone-card, .event-card');
+            if (card) {
+                item.style.cursor = 'pointer';
+                item.addEventListener('click', (e) => {
+                    if (!e.target.closest('.milestone-card') && !e.target.closest('.event-card')) {
+                        card.click();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
