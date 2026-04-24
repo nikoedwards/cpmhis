@@ -73,6 +73,11 @@ function leafTimeY(maxDepth: number, year: number) {
   return (maxDepth + 1) * LEVEL_HEIGHT + LEAF_GAP + (year - BASE_YEAR) * PX_PER_YEAR
 }
 
+export function canvasYToYear(canvasY: number, maxDepth: number): number {
+  const leafAreaStart = (maxDepth + 1) * LEVEL_HEIGHT + LEAF_GAP
+  return BASE_YEAR + (canvasY - leafAreaStart) / PX_PER_YEAR
+}
+
 export function buildGraph(
   knowledgeNodes: KnowledgeNode[],
   collapsedBranches: Set<string>,
@@ -193,7 +198,7 @@ export function buildGraph(
       type: 'leafNode',
       position: { x: leafX, y: leafY },
       data: { node: kn, depth, color: getBranchColor(depth - 1).dot },
-      draggable: false,
+      draggable: true,
     })
 
     flowEdges.push({
