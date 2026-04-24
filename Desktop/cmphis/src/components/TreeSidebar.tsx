@@ -14,6 +14,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   ChevronRight, ChevronDown, Edit2, Trash2, Plus,
   Link2, Link2Off, PanelLeftClose, PanelLeftOpen, GripVertical,
+  Eye, EyeOff,
 } from 'lucide-react'
 import { useStore } from '../store'
 import { getBranchColor } from '../utils/layout'
@@ -105,8 +106,10 @@ function DraggableLeafRow({ leaf, parentBranches, selectedId, onSelect, onDelete
     id: `leaf::${leaf.id}`,
     data: { type: 'leaf', nodeId: leaf.id, parentBranches },
   })
+  const hiddenNodes = useStore(s => s.hiddenNodes)
   const [hov, setHov] = useState(false)
-  const isSel = selectedId === leaf.id
+  const isSel   = selectedId === leaf.id
+  const isHidden = hiddenNodes.has(leaf.id)
   const color = getBranchColor(parentBranches.length - 1).dot
   const INDENT = 14
 
@@ -152,7 +155,7 @@ function DraggableLeafRow({ leaf, parentBranches, selectedId, onSelect, onDelete
         {/* Label */}
         <span
           className="text-[11.5px] truncate flex-1 leading-none"
-          style={{ color: isSel ? '#f1f5f9' : '#8898aa' }}
+          style={{ color: isSel ? '#f1f5f9' : isHidden ? '#475569' : '#8898aa' }}
         >
           {leaf.label}
         </span>
@@ -163,6 +166,13 @@ function DraggableLeafRow({ leaf, parentBranches, selectedId, onSelect, onDelete
         {/* Hover actions */}
         {(hov || isDragOverlay) && !isDragging && (
           <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              className="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors"
+              title={isHidden ? '显示节点' : '隐藏节点'}
+              onClick={e => { e.stopPropagation(); useStore.getState().toggleHide(leaf.id) }}
+            >
+              {isHidden ? <Eye size={10} /> : <EyeOff size={10} />}
+            </button>
             <button
               className="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-200 transition-colors"
               title="编辑" onClick={e => { e.stopPropagation(); onSelect(leaf.id) }}

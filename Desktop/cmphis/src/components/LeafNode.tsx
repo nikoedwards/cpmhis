@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Edit2, Trash2 } from 'lucide-react'
+import { Edit2, Trash2, Eye, EyeOff } from 'lucide-react'
 import { useStore } from '../store'
 import type { KnowledgeNode } from '../types'
 
@@ -11,9 +11,11 @@ interface LeafNodeData {
 }
 
 export default function LeafNode({ data }: { data: LeafNodeData }) {
-  const selectedId = useStore(s => s.selectedId)
+  const selectedId  = useStore(s => s.selectedId)
+  const hiddenNodes = useStore(s => s.hiddenNodes)
   const { node, color } = data
   const isSelected = selectedId === node.id
+  const isHidden   = hiddenNodes.has(node.id)
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -21,6 +23,7 @@ export default function LeafNode({ data }: { data: LeafNodeData }) {
       className="relative flex items-center gap-2 group"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      style={{ opacity: isHidden ? 0.35 : 1 }}
     >
       <Handle type="target" position={Position.Top}    id="top"    style={{ opacity: 0, width: 1, height: 1 }} />
       <Handle type="source" position={Position.Bottom} id="bottom" style={{ opacity: 0, width: 1, height: 1 }} />
@@ -65,8 +68,18 @@ export default function LeafNode({ data }: { data: LeafNodeData }) {
       {hovered && (
         <div
           className="absolute flex items-center gap-0.5 bg-slate-900 border border-slate-700 rounded px-0.5"
-          style={{ right: -52, top: '50%', transform: 'translateY(-50%)' }}
+          style={{ right: -74, top: '50%', transform: 'translateY(-50%)' }}
         >
+          <button
+            className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-200 transition-colors"
+            title={isHidden ? '显示节点' : '隐藏节点'}
+            onClick={e => {
+              e.stopPropagation()
+              useStore.getState().toggleHide(node.id)
+            }}
+          >
+            {isHidden ? <Eye size={10} /> : <EyeOff size={10} />}
+          </button>
           <button
             className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-200 transition-colors"
             title="编辑"

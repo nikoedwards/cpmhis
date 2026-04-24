@@ -24,6 +24,12 @@ export function getBranchColor(depth: number) {
   return BRANCH_COLORS[Math.min(depth, 6)]
 }
 
+export function canvasYToYear(canvasY: number, maxDepth: number): number {
+  const { LEVEL_HEIGHT, LEAF_GAP, BASE_YEAR, PX_PER_YEAR } = LAYOUT_CONSTANTS
+  const leafAreaStart = (maxDepth + 1) * LEVEL_HEIGHT + LEAF_GAP
+  return BASE_YEAR + (canvasY - leafAreaStart) / PX_PER_YEAR
+}
+
 // ── Internal tree used for DFS column ordering ──
 interface TN {
   children: Map<string, TN>
@@ -73,37 +79,30 @@ function leafTimeY(maxDepth: number, year: number) {
   return (maxDepth + 1) * LEVEL_HEIGHT + LEAF_GAP + (year - BASE_YEAR) * PX_PER_YEAR
 }
 
-export function canvasYToYear(canvasY: number, maxDepth: number): number {
-  const leafAreaStart = (maxDepth + 1) * LEVEL_HEIGHT + LEAF_GAP
-  return BASE_YEAR + (canvasY - leafAreaStart) / PX_PER_YEAR
-}
-
 export function buildGraph(
   knowledgeNodes: KnowledgeNode[],
   collapsedBranches: Set<string>,
+  hiddenNodes: Set<string> = new Set(),
 ): { nodes: Node[]; edges: Edge[] } {
-  if (knowledgeNodes.length === 0) return { nodes: [], edges: [] }
+  // Filter out explicitly hidden nodes before any layout work
+  const activeNodes = hiddenNodes.size > 0
+    ? knowledgeNodes.filter(kn => !hiddenNodes.has(kn.id))
+    : knowledgeNodes
 
-  function isHidden(kn: KnowledgeNode): boolean {
-    const branches = kn.branches.filter(Boolean) as string[]
-    for (let i = 0; i < branches.length - 1; i++) {
-      if (collapsedBranches.has(`${i}:${branches[i]}`)) return true
-    }
-    return false
-  }
+  if (activeNodes.length === 0) return { nodes: [], edges: [] }
 
-  const allSorted = [...knowledgeNodes].sort(
+  const allSorted = [...activeNodes].sort(
     (a, b) => a.timeYear - b.timeYear || a.label.localeCompare(b.label),
   )
 
-  // ── Step 1: DFS column order from ALL nodes (layout stable on collapse) ──
-  const treeRoot = buildTN(knowledgeNodes)
+  // ── Step 1: DFS column order from active nodes (layout stable on collapse) ──
+  const treeRoot = buildTN(activeNodes)
   const columnOrder = dfsColumns(treeRoot)
 
   const columnX = new Map<string, number>()
   columnOrder.forEach((col, i) => columnX.set(col, i * COL_WIDTH + COL_WIDTH / 2))
 
-  const maxDepth = Math.max(...knowledgeNodes.map(kn => kn.branches.filter(Boolean).length - 1))
+  const maxDepth = Math.max(...activeNodes.map(kn => kn.branches.filter(Boolean).length - 1))
 
   // ── Step 2: Branch node X = average X of all leaf columns under it ──
   const branchSpan = new Map<string, Set<number>>()
@@ -127,14 +126,16 @@ export function buildGraph(
   }
 
   // ── Step 3: Emit nodes & edges ──
+  // Process ALL sorted nodes (not pre-filtered by collapse).
+  // The loop handles collapsed branches internally: it creates the collapsed
+  // branch node, then sets parentId=null and breaks — so leaves under a
+  // collapsed branch are skipped but the branch node itself always appears.
   const flowNodes: Node[] = []
   const flowEdges: Edge[] = []
   const branchCreated = new Set<string>()
   const colLastY = new Map<number, number>()
 
-  const visibleSorted = allSorted.filter(kn => !isHidden(kn))
-
-  for (const kn of visibleSorted) {
+  for (const kn of allSorted) {
     const branches = kn.branches.filter(Boolean) as string[]
     const col = branches.join('///')
     const leafX = columnX.get(col)
@@ -143,7 +144,8 @@ export function buildGraph(
     const preferred = leafTimeY(maxDepth, kn.timeYear)
     const last = colLastY.get(leafX) ?? -Infinity
     const leafY = Math.max(preferred, last + MIN_LEAF_GAP)
-    colLastY.set(leafX, leafY)
+    // Only advance colLastY when this leaf is actually rendered (not collapsed)
+    // We'll update it after we know parentId is not null.
 
     let parentId: string | null = null
 
@@ -190,6 +192,9 @@ export function buildGraph(
     }
 
     if (parentId === null) continue
+
+    // Leaf is visible — reserve its Y slot
+    colLastY.set(leafX, leafY)
 
     const leafId = `leaf::${kn.id}`
     const depth = branches.length

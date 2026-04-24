@@ -28,6 +28,7 @@ const { BASE_YEAR, MAX_YEAR } = LAYOUT_CONSTANTS
 export default function Canvas() {
   const knodes            = useStore(s => s.nodes)
   const collapsedBranches = useStore(s => s.collapsedBranches)
+  const hiddenNodes       = useStore(s => s.hiddenNodes)
   const toggleCollapse    = useStore(s => s.toggleCollapse)
   const selectNode        = useStore(s => s.selectNode)
   const selectedId        = useStore(s => s.selectedId)
@@ -37,8 +38,8 @@ export default function Canvas() {
   const { screenToFlowPosition } = useReactFlow()
 
   const { nodes, edges } = useMemo(
-    () => buildGraph(knodes, collapsedBranches),
-    [knodes, collapsedBranches],
+    () => buildGraph(knodes, collapsedBranches, hiddenNodes),
+    [knodes, collapsedBranches, hiddenNodes],
   )
 
   const maxDepth = knodes.length > 0
