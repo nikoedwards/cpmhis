@@ -126,6 +126,35 @@ export default function Timeline() {
         )
       })}
 
+      {/* Today marker line */}
+      {(() => {
+        const d = new Date()
+        const todayFrac = d.getFullYear() + d.getMonth() / 12 + (d.getDate() - 1) / 365
+        const tlY = yearToTL(todayFrac)
+        if (tlY < -4 || tlY > containerH + 4) return null
+        return (
+          <div
+            key="today"
+            className="absolute left-0 right-0 pointer-events-none z-30"
+            style={{ top: Math.round(tlY), borderTop: '1px dashed rgba(234,179,8,0.6)' }}
+          >
+            <span style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              top: -13,
+              fontSize: 8,
+              color: 'rgba(234,179,8,0.9)',
+              background: '#09090f',
+              padding: '1px 3px',
+              borderRadius: 2,
+              fontFamily: 'monospace',
+              whiteSpace: 'nowrap',
+            }}>今</span>
+          </div>
+        )
+      })()}
+
       {/* Node dots — only show nodes in visible time range */}
       {nodes.map(n => {
         if (n.timeYear < visTopYear - 2 || n.timeYear > visBotYear + 2) return null

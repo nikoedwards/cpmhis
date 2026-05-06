@@ -131,6 +131,10 @@ export function buildGraph(
   const flowNodes: Node[] = []
   const flowEdges: Edge[] = []
   const branchCreated = new Set<string>()
+  // Per-column last-used Y: prevents same-column nodes from stacking on top of each other.
+  // Across columns the preferred time-based Y is always used, preserving horizontal alignment.
+  const colLastY = new Map<number, number>()
+  const MIN_LEAF_GAP = 34
 
   for (const kn of allSorted) {
     const branches = kn.branches.filter(Boolean) as string[]
@@ -138,7 +142,9 @@ export function buildGraph(
     const leafX = columnX.get(col)
     if (leafX === undefined) continue
 
-    const leafY = leafTimeY(maxDepth, kn.timeYear)
+    const preferred = leafTimeY(maxDepth, kn.timeYear)
+    const last = colLastY.get(leafX) ?? -Infinity
+    const leafY = Math.max(preferred, last + MIN_LEAF_GAP)
 
     let parentId: string | null = null
 
@@ -186,6 +192,7 @@ export function buildGraph(
 
     if (parentId === null) continue
 
+    colLastY.set(leafX, leafY)
     const leafId = `leaf::${kn.id}`
     const depth = branches.length
     flowNodes.push({
