@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Edit2, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Edit2, Trash2, Eye, EyeOff, Plus } from 'lucide-react'
 import { useStore } from '../store'
+import { nanoid } from '../utils/nanoid'
 import type { KnowledgeNode } from '../types'
 
 interface LeafNodeData {
@@ -18,12 +19,36 @@ export default function LeafNode({ data }: { data: LeafNodeData }) {
   const isHidden   = hiddenNodes.has(node.id)
   const [hovered, setHovered] = useState(false)
 
+  function handleAddSibling(e: React.MouseEvent) {
+    e.stopPropagation()
+    const year = new Date().getFullYear()
+    const newNode = {
+      id: nanoid(),
+      branches: [...node.branches] as KnowledgeNode['branches'],
+      phase: '',
+      time: String(year),
+      timeYear: year,
+      label: '新节点',
+      tags: [],
+      significance: '',
+      content: '',
+    }
+    useStore.getState().addNode(newNode as any)
+    useStore.getState().selectNode(newNode.id)
+  }
+
   return (
     <div
       className="relative flex items-center gap-2 group"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{ opacity: isHidden ? 0.35 : 1 }}
+      style={{
+        opacity: isHidden ? 0.35 : 1,
+        // Dark backdrop prevents text from adjacent columns bleeding through
+        background: 'rgba(9,9,15,0.88)',
+        borderRadius: 4,
+        padding: '2px 6px 2px 0',
+      }}
     >
       <Handle type="target" position={Position.Top}    id="top"    style={{ opacity: 0, width: 1, height: 1 }} />
       <Handle type="source" position={Position.Bottom} id="bottom" style={{ opacity: 0, width: 1, height: 1 }} />
@@ -68,8 +93,15 @@ export default function LeafNode({ data }: { data: LeafNodeData }) {
       {hovered && (
         <div
           className="absolute flex items-center gap-0.5 bg-slate-900 border border-slate-700 rounded px-0.5"
-          style={{ right: -74, top: '50%', transform: 'translateY(-50%)' }}
+          style={{ right: -88, top: '50%', transform: 'translateY(-50%)', zIndex: 50 }}
         >
+          <button
+            className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-emerald-400 transition-colors"
+            title="添加同级节点"
+            onClick={handleAddSibling}
+          >
+            <Plus size={10} />
+          </button>
           <button
             className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-200 transition-colors"
             title={isHidden ? '显示节点' : '隐藏节点'}

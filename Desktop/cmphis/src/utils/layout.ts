@@ -166,6 +166,7 @@ export function buildGraph(
             collapsed: isCollapsed,
             collapseKey,
             color: getBranchColor(i).dot,
+            pathArray: branches.slice(0, i + 1),
           },
           draggable: false,
         })
