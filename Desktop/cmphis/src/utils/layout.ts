@@ -8,6 +8,7 @@ export const LAYOUT_CONSTANTS = {
   BASE_YEAR: 1940,
   PX_PER_YEAR: 9,
   MAX_YEAR: 2035,
+  COL_WIDTH: 200,
 } as const
 
 export const BRANCH_COLORS: Record<number, { dot: string; edge: string }> = {
@@ -70,10 +71,7 @@ function dfsColumns(root: TN): string[] {
   return order
 }
 
-// Layout constants (internal layout vars + re-use exported ones)
-const COL_WIDTH    = 200
-const MIN_LEAF_GAP = 34
-const { LEVEL_HEIGHT, LEAF_GAP, BASE_YEAR, PX_PER_YEAR } = LAYOUT_CONSTANTS
+const { LEVEL_HEIGHT, LEAF_GAP, BASE_YEAR, PX_PER_YEAR, COL_WIDTH } = LAYOUT_CONSTANTS
 
 function leafTimeY(maxDepth: number, year: number) {
   return (maxDepth + 1) * LEVEL_HEIGHT + LEAF_GAP + (year - BASE_YEAR) * PX_PER_YEAR
@@ -83,13 +81,13 @@ export function buildGraph(
   knowledgeNodes: KnowledgeNode[],
   collapsedBranches: Set<string>,
   hiddenNodes: Set<string> = new Set(),
-): { nodes: Node[]; edges: Edge[] } {
+): { nodes: Node[]; edges: Edge[]; columnXMap: Map<string, number> } {
   // Filter out explicitly hidden nodes before any layout work
   const activeNodes = hiddenNodes.size > 0
     ? knowledgeNodes.filter(kn => !hiddenNodes.has(kn.id))
     : knowledgeNodes
 
-  if (activeNodes.length === 0) return { nodes: [], edges: [] }
+  if (activeNodes.length === 0) return { nodes: [], edges: [], columnXMap: new Map() }
 
   const allSorted = [...activeNodes].sort(
     (a, b) => a.timeYear - b.timeYear || a.label.localeCompare(b.label),
@@ -133,7 +131,6 @@ export function buildGraph(
   const flowNodes: Node[] = []
   const flowEdges: Edge[] = []
   const branchCreated = new Set<string>()
-  const colLastY = new Map<number, number>()
 
   for (const kn of allSorted) {
     const branches = kn.branches.filter(Boolean) as string[]
@@ -141,11 +138,7 @@ export function buildGraph(
     const leafX = columnX.get(col)
     if (leafX === undefined) continue
 
-    const preferred = leafTimeY(maxDepth, kn.timeYear)
-    const last = colLastY.get(leafX) ?? -Infinity
-    const leafY = Math.max(preferred, last + MIN_LEAF_GAP)
-    // Only advance colLastY when this leaf is actually rendered (not collapsed)
-    // We'll update it after we know parentId is not null.
+    const leafY = leafTimeY(maxDepth, kn.timeYear)
 
     let parentId: string | null = null
 
@@ -193,9 +186,6 @@ export function buildGraph(
 
     if (parentId === null) continue
 
-    // Leaf is visible — reserve its Y slot
-    colLastY.set(leafX, leafY)
-
     const leafId = `leaf::${kn.id}`
     const depth = branches.length
     flowNodes.push({
@@ -217,5 +207,5 @@ export function buildGraph(
     })
   }
 
-  return { nodes: flowNodes, edges: flowEdges }
+  return { nodes: flowNodes, edges: flowEdges, columnXMap: columnX }
 }

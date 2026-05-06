@@ -115,7 +115,7 @@ export default function Timeline() {
         return (
           <div
             key={year}
-            className="absolute flex items-center pointer-events-none"
+            className="absolute flex items-center pointer-events-none z-20"
             style={{ top: Math.round(tlY) - 6, left: 0, right: 0 }}
           >
             <span className="text-[9px] text-slate-500 font-mono leading-none pl-1.5 w-9 text-right tabular-nums">
@@ -138,7 +138,7 @@ export default function Timeline() {
             className="absolute rounded-full z-10 transition-all hover:scale-150"
             style={{
               top: Math.round(tlY) - 3,
-              left: '50%',
+              left: 38,
               transform: 'translateX(-50%)',
               width: 6,
               height: 6,

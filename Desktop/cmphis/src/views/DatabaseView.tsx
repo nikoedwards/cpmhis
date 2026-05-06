@@ -246,7 +246,7 @@ export default function DatabaseView() {
   const btnBase = "flex items-center gap-1 px-2.5 py-1.5 rounded text-[11px] transition-colors border"
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#0c0e14' }}>
+    <div className="flex flex-col" style={{ flex: 1, height: '100%', background: '#0c0e14' }}>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-slate-800/60 bg-slate-950/50 flex-wrap">

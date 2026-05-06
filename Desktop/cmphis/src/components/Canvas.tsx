@@ -1,10 +1,11 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
   Controls,
   BackgroundVariant,
   useReactFlow,
+  useViewport,
   type NodeTypes,
   type Node,
   type OnNodeDrag,
@@ -12,6 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { useStore } from '../store'
 import { buildGraph, canvasYToYear, LAYOUT_CONSTANTS } from '../utils/layout'
+import type { KnowledgeNode } from '../types'
 import { nanoid } from '../utils/nanoid'
 import BranchNode from './BranchNode'
 import LeafNode from './LeafNode'
@@ -23,7 +25,7 @@ const nodeTypes: NodeTypes = {
   leafNode: LeafNode as any,
 }
 
-const { BASE_YEAR, MAX_YEAR } = LAYOUT_CONSTANTS
+const { BASE_YEAR, MAX_YEAR, LEVEL_HEIGHT, LEAF_GAP, PX_PER_YEAR, COL_WIDTH } = LAYOUT_CONSTANTS
 
 export default function Canvas() {
   const knodes            = useStore(s => s.nodes)
@@ -36,8 +38,9 @@ export default function Canvas() {
   const addNode           = useStore(s => s.addNode)
 
   const { screenToFlowPosition } = useReactFlow()
+  const viewport = useViewport()
 
-  const { nodes, edges } = useMemo(
+  const { nodes, edges, columnXMap } = useMemo(
     () => buildGraph(knodes, collapsedBranches, hiddenNodes),
     [knodes, collapsedBranches, hiddenNodes],
   )
@@ -45,6 +48,21 @@ export default function Canvas() {
   const maxDepth = knodes.length > 0
     ? knodes.reduce((m, n) => Math.max(m, n.branches.filter(Boolean).length - 1), 0)
     : 3
+
+  // Refs to read latest values inside drag callbacks without stale closures
+  const columnXMapRef = useRef(columnXMap)
+  columnXMapRef.current = columnXMap
+  const maxDepthRef = useRef(maxDepth)
+  maxDepthRef.current = maxDepth
+  const viewportRef = useRef(viewport)
+  viewportRef.current = viewport
+
+  // Snap guide: screen-space coords for the dashed guide lines
+  const [dragSnap, setDragSnap] = useState<{
+    screenX: number
+    screenY: number
+    year: number
+  } | null>(null)
 
   const onNodeClick = useCallback((_: React.MouseEvent, rfNode: Node) => {
     if (rfNode.type === 'branchNode') {
@@ -56,19 +74,67 @@ export default function Canvas() {
     }
   }, [toggleCollapse, selectNode, selectedId])
 
-  // Drag leaf node → update timeYear from new Y position
+  // During drag: compute nearest column + nearest year and show snap guides
+  const onNodeDrag: OnNodeDrag = useCallback((_e, rfNode) => {
+    if (rfNode.type !== 'leafNode') return
+    const vp = viewportRef.current
+    const cxMap = columnXMapRef.current
+    const md = maxDepthRef.current
+
+    // Nearest column center (canvas coords)
+    let nearestColX = rfNode.position.x
+    let nearestColDist = Infinity
+    for (const [, cx] of cxMap) {
+      const d = Math.abs(cx - rfNode.position.x)
+      if (d < nearestColDist) { nearestColDist = d; nearestColX = cx }
+    }
+
+    // Snap year from current Y
+    const leafAreaStart = (md + 1) * LEVEL_HEIGHT + LEAF_GAP
+    const rawYear = BASE_YEAR + (rfNode.position.y - leafAreaStart) / PX_PER_YEAR
+    const snapYear = Math.max(BASE_YEAR, Math.min(MAX_YEAR, Math.round(rawYear)))
+    const snapCanvasY = leafAreaStart + (snapYear - BASE_YEAR) * PX_PER_YEAR
+
+    // canvas → screen (within ReactFlow container)
+    setDragSnap({
+      screenX: nearestColX * vp.zoom + vp.x,
+      screenY: snapCanvasY * vp.zoom + vp.y,
+      year: snapYear,
+    })
+  }, [])
+
+  // On drop: update branch from X position only — never update time
   const onNodeDragStop: OnNodeDrag = useCallback((_e, rfNode) => {
     if (rfNode.type !== 'leafNode') return
-    const data = rfNode.data as { node: { id: string } }
-    const newYear = Math.round(canvasYToYear(rfNode.position.y, maxDepth))
-    const clamped = Math.max(BASE_YEAR, Math.min(MAX_YEAR, newYear))
-    updateNode(data.node.id, {
-      timeYear: clamped,
-      time: String(clamped),
-    })
-  }, [maxDepth, updateNode])
+    setDragSnap(null)
 
-  // Double-click on canvas background → create new node at that position
+    const data = rfNode.data as { node: KnowledgeNode }
+    const cxMap = columnXMapRef.current
+
+    let nearestPathKey = ''
+    let nearestDist = Infinity
+    for (const [pathKey, cx] of cxMap) {
+      const d = Math.abs(cx - rfNode.position.x)
+      if (d < nearestDist) { nearestDist = d; nearestPathKey = pathKey }
+    }
+
+    if (!nearestPathKey || nearestDist > COL_WIDTH) return
+    const currentPath = (data.node.branches.filter(Boolean) as string[]).join('///')
+    if (nearestPathKey === currentPath) return
+
+    const parts = nearestPathKey.split('///')
+    const branches = [
+      parts[0] || undefined,
+      parts[1] || undefined,
+      parts[2] || undefined,
+      parts[3] || undefined,
+      parts[4] || undefined,
+      parts[5] || undefined,
+    ] as KnowledgeNode['branches']
+    updateNode(data.node.id, { branches })
+  }, [updateNode])
+
+  // Double-click on canvas background → create new node at that Y position
   const onPaneDoubleClick = useCallback((e: React.MouseEvent) => {
     const canvasPos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
     const year = Math.round(canvasYToYear(canvasPos.y, maxDepth))
@@ -98,6 +164,7 @@ export default function Canvas() {
           edges={edges}
           nodeTypes={nodeTypes}
           onNodeClick={onNodeClick}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onDoubleClick={onPaneDoubleClick}
           fitView
@@ -110,6 +177,31 @@ export default function Canvas() {
           <Controls position="bottom-right" showInteractive={false} />
         </ReactFlow>
         <Toolbar />
+
+        {/* Snap guide overlay — shown while dragging a leaf */}
+        {dragSnap && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 100 }}>
+            {/* Horizontal year line */}
+            <div
+              className="absolute left-0 right-0"
+              style={{ top: dragSnap.screenY, borderTop: '1px dashed rgba(99,102,241,0.55)' }}
+            >
+              <span style={{
+                position: 'absolute', right: 10, top: -14,
+                fontSize: 9, color: 'rgba(139,92,246,0.9)',
+                background: '#0f1117', padding: '1px 4px',
+                borderRadius: 2, fontFamily: 'monospace',
+              }}>
+                {dragSnap.year}
+              </span>
+            </div>
+            {/* Vertical column line */}
+            <div
+              className="absolute top-0 bottom-0"
+              style={{ left: dragSnap.screenX, borderLeft: '1px dashed rgba(99,102,241,0.35)' }}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

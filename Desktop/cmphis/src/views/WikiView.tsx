@@ -517,7 +517,7 @@ export default function WikiView() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden' }}>
 
       {/* ── Left: tree navigation ────────────────────────────────────────── */}
       <div
