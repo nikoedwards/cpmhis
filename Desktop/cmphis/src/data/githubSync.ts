@@ -58,6 +58,13 @@ function nodesToBase64(nodes: KnowledgeNode[]): string {
   return XLSX.write(wb, { type: 'base64', bookType: 'xlsx' })
 }
 
+// 数据内容签名（忽略随机 id，仅看会写入 xlsx 的字段）——用于检测"是否真的有变更"
+export function nodesSignature(nodes: KnowledgeNode[]): string {
+  return JSON.stringify(nodes.map(n => [
+    n.branches, n.phase, n.time, n.label, n.tags, n.significance, n.content ?? '',
+  ]))
+}
+
 function apiUrl(cfg: GitHubConfig): string {
   return `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${cfg.path}`
 }
