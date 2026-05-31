@@ -70,15 +70,15 @@ function WikiLeafRow({ leaf, sel, onSelect }: {
       style={{
         paddingLeft: leaf.branches.filter(Boolean).length * 14 + 8,
         background: isSel ? `${color}22` : undefined,
-        color: isSel ? '#e2e8f0' : '#64748b',
+        color: isSel ? 'var(--text)' : 'var(--text-muted)',
       }}
       onClick={() => onSelect({ type: 'leaf', id: leaf.id })}
-      onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLDivElement).style.color = '#94a3b8' }}
-      onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLDivElement).style.color = '#64748b' }}
+      onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLDivElement).style.color = 'var(--text-2)' }}
+      onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLDivElement).style.color = 'var(--text-muted)' }}
     >
-      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: isSel ? color : '#334155' }} />
+      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: isSel ? color : 'var(--text-faint)' }} />
       <span className="truncate flex-1">{leaf.label}</span>
-      <span className="text-[10px] flex-shrink-0" style={{ color: '#334155' }}>{leaf.time}</span>
+      <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--text-faint)' }}>{leaf.time}</span>
     </div>
   )
 }
@@ -102,7 +102,7 @@ function WikiBranchRow({ branch, collapsed, onToggle, sel, onSelect }: {
           paddingLeft: branch.depth * INDENT + 8,
           paddingRight: 8,
           background: isSel ? `${branch.color}18` : undefined,
-          color: isSel ? '#e2e8f0' : '#94a3b8',
+          color: isSel ? 'var(--text)' : 'var(--text-2)',
         }}
         onClick={() => {
           onToggle(branch.collapseKey)
@@ -396,7 +396,7 @@ function WikiBranchPage({ path, nodes, onSelectLeaf }: {
                 <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: color }} />
                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[13px] text-slate-200 group-hover:text-white font-medium">{leaf.label}</span>
+                    <span className="text-[13px] text-slate-200 group-hover:text-slate-50 font-medium">{leaf.label}</span>
                     <span className="text-[11px] text-slate-600">{leaf.time}</span>
                   </div>
                   {leaf.significance && (
@@ -495,9 +495,15 @@ function WikiSubDir({ sel, nodes, onSelect }: {
 export default function WikiView() {
   const nodes = useStore(s => s.nodes)
   const selectNode = useStore(s => s.selectNode)
+  const selectedId = useStore(s => s.selectedId)
 
-  const [sel, setSel] = useState<WikiSel>(null)
+  // 从画布详情面板「在 Wiki 中查看」跳转过来时，自动打开该节点
+  const [sel, setSel] = useState<WikiSel>(() => selectedId ? { type: 'leaf', id: selectedId } : null)
   const [wikiCollapsed, setWikiCollapsed] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (selectedId) setSel({ type: 'leaf', id: selectedId })
+  }, [selectedId])
 
   const tree = useMemo(() => buildWikiTree(nodes), [nodes])
 
@@ -521,8 +527,8 @@ export default function WikiView() {
 
       {/* ── Left: tree navigation ────────────────────────────────────────── */}
       <div
-        className="flex-shrink-0 border-r border-slate-800/60 overflow-y-auto"
-        style={{ width: 240, background: '#0a0c12' }}
+        className="theme-anim flex-shrink-0 overflow-y-auto"
+        style={{ width: 240, background: 'var(--surface-2)', borderRight: '1px solid var(--border)' }}
       >
         <div className="px-3 py-3">
           <div className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider mb-3 px-1">目录</div>
@@ -540,7 +546,7 @@ export default function WikiView() {
       </div>
 
       {/* ── Center: content ───────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto" style={{ background: '#0f1117' }}>
+      <div className="theme-anim flex-1 overflow-y-auto" style={{ background: 'var(--bg)' }}>
         {selNode ? (
           <WikiNodePage node={selNode} onJump={jumpToCanvas} />
         ) : sel?.type === 'branch' ? (
@@ -555,8 +561,8 @@ export default function WikiView() {
 
       {/* ── Right: sub-directory ─────────────────────────────────────────── */}
       <div
-        className="flex-shrink-0 border-l border-slate-800/60 overflow-y-auto"
-        style={{ width: 200, background: '#0a0c12' }}
+        className="theme-anim flex-shrink-0 overflow-y-auto"
+        style={{ width: 200, background: 'var(--surface-2)', borderLeft: '1px solid var(--border)' }}
       >
         <div className="px-3 py-3">
           <div className="text-[10px] text-slate-600 font-semibold uppercase tracking-wider mb-3 px-1">子目录</div>

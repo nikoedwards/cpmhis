@@ -1,12 +1,14 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import {
   Download, Upload, Trash2, Plus, Search, X,
-  ChevronUp, ChevronDown,
+  ChevronUp, ChevronDown, ListTree,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useStore } from '../store'
 import type { KnowledgeNode } from '../types'
 import { nanoid } from '../utils/nanoid'
+import BranchManager from '../components/BranchManager'
+import BranchSelect from '../components/BranchSelect'
 
 // ── Column definitions ─────────────────────────────────────────────────────
 
@@ -108,6 +110,27 @@ export default function DatabaseView() {
   const [search, setSearch]     = useState('')
   const [sortBy, setSortBy]     = useState<{ col: ColKey; dir: 'asc' | 'desc' } | null>(null)
   const [newRowId, setNewRowId] = useState<string | null>(null)
+  const [showBranches, setShowBranches] = useState<boolean>(
+    () => localStorage.getItem('cmphis_db_branchpanel') !== 'false',
+  )
+
+  function toggleBranchPanel() {
+    setShowBranches(v => {
+      localStorage.setItem('cmphis_db_branchpanel', String(!v))
+      return !v
+    })
+  }
+
+  // 选择分支：设置该层级值，并清空更深层级（保持路径合法）
+  const saveBranchCell = useCallback((id: string, idx: number, value: string) => {
+    const node = useStore.getState().nodes.find(n => n.id === id)
+    if (!node) return
+    const branches = [...node.branches] as KnowledgeNode['branches']
+    branches[idx as 0|1|2|3|4|5] = value.trim() || undefined
+    for (let j = idx + 1; j < 6; j++) branches[j as 0|1|2|3|4|5] = undefined
+    updateNode(id, { branches })
+    setEditingCell(null)
+  }, [updateNode])
 
   // ── Filtering + sorting ──────────────────────────────────────────────────
   const filteredNodes = useMemo(() => {
@@ -246,7 +269,7 @@ export default function DatabaseView() {
   const btnBase = "flex items-center gap-1 px-2.5 py-1.5 rounded text-[11px] transition-colors border"
 
   return (
-    <div className="flex flex-col" style={{ flex: 1, height: '100%', background: '#0c0e14' }}>
+    <div className="theme-anim flex flex-col" style={{ flex: 1, height: '100%', background: 'var(--bg)' }}>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-slate-800/60 bg-slate-950/50 flex-wrap">
@@ -266,8 +289,17 @@ export default function DatabaseView() {
           )}
         </div>
 
+        <button onClick={toggleBranchPanel}
+          className={`${btnBase} ${showBranches
+            ? 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50'
+            : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-700/60'}`}
+          title="分支管理面板">
+          <ListTree size={11} /> 分支
+        </button>
+
         <button onClick={handleAddRow}
-          className={`${btnBase} bg-indigo-900/40 hover:bg-indigo-800/50 text-indigo-300 border-indigo-700/40`}>
+          className={btnBase}
+          style={{ background: 'var(--accent)', color: 'var(--accent-fg)', borderColor: 'var(--accent)' }}>
           <Plus size={11} /> 添加行
         </button>
 
@@ -291,10 +323,18 @@ export default function DatabaseView() {
         <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
       </div>
 
+      {/* ── Body: 分支管理面板 + 表格 ──────────────────────────────────── */}
+      <div className="flex flex-1 min-h-0">
+        {showBranches && (
+          <div className="flex-shrink-0" style={{ width: 248 }}>
+            <BranchManager />
+          </div>
+        )}
+
       {/* ── Table ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto min-w-0">
         <table className="border-collapse text-[12px]" style={{ minWidth: 1460 }}>
-          <thead className="sticky top-0 z-10" style={{ background: '#111318' }}>
+          <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-2)' }}>
             <tr>
               {/* Checkbox */}
               <th className="w-9 px-2 border-b border-r border-slate-800 text-center">
@@ -350,15 +390,26 @@ export default function DatabaseView() {
                 {COLS.map(col => {
                   const value = getCellValue(node, col.key)
                   const isEditing = editingCell?.id === node.id && editingCell?.col === col.key
+                  const isBranch = col.key.startsWith('branch')
+                  const branchIdx = isBranch ? parseInt(col.key.slice(6)) : -1
                   return (
                     <td key={col.key} className={tdBase} style={{ width: col.w, maxWidth: col.w }}>
                       {isEditing ? (
+                        isBranch ? (
+                          <BranchSelect
+                            parentPath={(node.branches.slice(0, branchIdx).filter(Boolean) as string[])}
+                            value={value}
+                            onSelect={v => saveBranchCell(node.id, branchIdx, v)}
+                            onClose={() => setEditingCell(null)}
+                          />
+                        ) : (
                         <CellEditor
                           value={value}
                           multiline={col.multi}
                           onSave={v => saveCell(node.id, col.key, v)}
                           onCancel={() => setEditingCell(null)}
                         />
+                        )
                       ) : (
                         <div
                           className="px-1 py-0.5 rounded cursor-text hover:bg-slate-800/50 text-slate-300 leading-snug"
@@ -405,6 +456,7 @@ export default function DatabaseView() {
             )}
           </div>
         )}
+      </div>
       </div>
 
       {/* ── Footer count ─────────────────────────────────────────────────── */}

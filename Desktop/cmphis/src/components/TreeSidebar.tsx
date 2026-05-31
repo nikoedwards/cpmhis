@@ -64,6 +64,33 @@ function buildTree(knodes: KnowledgeNode[]): SidebarBranch[] {
   return root.children
 }
 
+// 按用户在画布上调整的同级顺序（branchOrder）递归重排兄弟分支，使大纲与画布一致。
+// parentKey = 父分支路径 join('///')（顶层父key=''）；规则与画布 dfsColumns 完全一致：
+// 已列出的按其顺序在前，未列出的按原（时间）序追加在后。
+function applyBranchOrder(
+  branches: SidebarBranch[],
+  parentKey: string,
+  branchOrder: Record<string, string[]>,
+): SidebarBranch[] {
+  let result = branches
+  const custom = branchOrder[parentKey]
+  if (custom && custom.length) {
+    const rank = new Map(custom.map((l, i) => [l, i]))
+    result = branches
+      .map((b, i) => ({ b, i }))
+      .sort((a, b) => {
+        const ra = rank.has(a.b.label) ? rank.get(a.b.label)! : custom.length + a.i
+        const rb = rank.has(b.b.label) ? rank.get(b.b.label)! : custom.length + b.i
+        return ra - rb
+      })
+      .map(x => x.b)
+  }
+  for (const b of result) {
+    b.children = applyBranchOrder(b.children, b.pathArray.join('///'), branchOrder)
+  }
+  return result
+}
+
 // ── Insert gap ─────────────────────────────────────────────────────────────
 
 function InsertGap({ parentBranches, afterYear, onInsert }: {
@@ -148,14 +175,14 @@ function DraggableLeafRow({ leaf, parentBranches, selectedId, onSelect, onDelete
           className="w-[5px] h-[5px] rounded-full flex-shrink-0"
           style={{
             backgroundColor: isSel ? color : 'transparent',
-            border: `1.5px solid ${isSel ? color : '#475569'}`,
+            border: `1.5px solid ${isSel ? color : 'var(--text-faint)'}`,
           }}
         />
 
         {/* Label */}
         <span
           className="text-[11.5px] truncate flex-1 leading-none"
-          style={{ color: isSel ? '#f1f5f9' : isHidden ? '#475569' : '#8898aa' }}
+          style={{ color: isSel ? 'var(--text)' : isHidden ? 'var(--text-faint)' : 'var(--text-2)' }}
         >
           {leaf.label}
         </span>
@@ -232,7 +259,7 @@ function DroppableBranchRow({ branch, collapsed, onToggle,
         style={{
           paddingLeft: branch.depth * INDENT + 8,
           paddingRight: 4,
-          background: isOver ? `${branch.color}22` : hov ? '#ffffff06' : undefined,
+          background: isOver ? `${branch.color}22` : hov ? 'var(--surface-3)' : undefined,
           cursor: 'pointer',
           outline: isOver ? `1px solid ${branch.color}50` : undefined,
         }}
@@ -346,6 +373,7 @@ export default function TreeSidebar({ open, onToggleOpen }: TreeSidebarProps) {
   const deleteNode      = useStore(s => s.deleteNode)
   const deleteBranch    = useStore(s => s.deleteBranch)
   const updateNode      = useStore(s => s.updateNode)
+  const branchOrder     = useStore(s => s.branchOrder)
 
   const collapsed = collapseSync ? collapsedCanvas : collapsedSb
 
@@ -401,7 +429,10 @@ export default function TreeSidebar({ open, onToggleOpen }: TreeSidebarProps) {
     selectNode(node.id)
   }, [addNode, selectNode])
 
-  const topBranches = useMemo(() => buildTree(knodes), [knodes])
+  const topBranches = useMemo(
+    () => applyBranchOrder(buildTree(knodes), '', branchOrder),
+    [knodes, branchOrder],
+  )
 
   const shared = {
     collapsed,
@@ -416,7 +447,7 @@ export default function TreeSidebar({ open, onToggleOpen }: TreeSidebarProps) {
   // ── Collapsed panel ──
   if (!open) {
     return (
-      <div className="w-8 flex-shrink-0 h-full border-r border-slate-800/70 flex flex-col items-center pt-3 bg-[#0c0f18]">
+      <div className="theme-anim w-8 flex-shrink-0 h-full flex flex-col items-center pt-3" style={{ borderRight: '1px solid var(--border)', background: 'var(--surface-2)' }}>
         <button
           onClick={onToggleOpen}
           className="p-1.5 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
@@ -429,7 +460,7 @@ export default function TreeSidebar({ open, onToggleOpen }: TreeSidebarProps) {
   }
 
   return (
-    <div className="w-[248px] flex-shrink-0 h-full border-r border-slate-800/70 flex flex-col overflow-hidden bg-[#0c0f18]">
+    <div className="theme-anim w-[248px] flex-shrink-0 h-full flex flex-col overflow-hidden" style={{ borderRight: '1px solid var(--border)', background: 'var(--surface-2)' }}>
       {/* Header */}
       <div className="px-2.5 py-2 border-b border-slate-800/70 flex-shrink-0 flex items-center gap-1">
         <button

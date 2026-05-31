@@ -1,15 +1,174 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   主题系统
+   - 把 slate 色阶变量化：亮色用“反转”取值（高位=浅背景、低位=深文字），
+     暗色用正常深色取值。这样现有大量 slate-* 类无需改写即可双主题适配。
+   - 另外提供一套语义变量（--bg / --surface / --text / --accent ...）供内联
+     样式和 react-flow 覆盖使用。
+   ========================================================================== */
+
+@theme {
+  --color-slate-50:  var(--s-50);
+  --color-slate-100: var(--s-100);
+  --color-slate-200: var(--s-200);
+  --color-slate-300: var(--s-300);
+  --color-slate-400: var(--s-400);
+  --color-slate-500: var(--s-500);
+  --color-slate-600: var(--s-600);
+  --color-slate-700: var(--s-700);
+  --color-slate-800: var(--s-800);
+  --color-slate-900: var(--s-900);
+  --color-slate-950: var(--s-950);
+}
+
+/* ── 亮色（默认）：slate 语义反转 ───────────────────────────────────────── */
+:root {
+  /* 背景类（原本越大越深 → 现在越大越浅） */
+  --s-950: #f3f4f7;  /* app 画布底 */
+  --s-900: #ffffff;  /* 面板/卡片 */
+  --s-800: #e9ebef;  /* 边框 / hover 底 */
+  --s-700: #d8dce3;  /* 较强边框 / 很淡的提示文字 */
+  /* 中间：muted 文字与图标，两套主题都保持中性灰 */
+  --s-600: #aeb5c0;
+  --s-500: #8b93a1;
+  --s-400: #626b7a;
+  /* 文字类（原本越小越浅 → 现在越小越深） */
+  --s-300: #3c4350;
+  --s-200: #272c36;
+  --s-100: #181c24;
+  --s-50:  #0c0e13;
+
+  /* 语义 token */
+  --bg:          #f3f4f7;
+  --surface:     #ffffff;
+  --surface-2:   #f7f8fa;
+  --surface-3:   #eceef2;
+  --header-bg:   #ffffff;
+  --border:      #e4e7ec;
+  --border-soft: #eef0f3;
+  --text:        #1e222b;
+  --text-2:      #51586a;
+  --text-muted:  #8b93a1;
+  --text-faint:  #b3bac4;
+
+  --accent:        #4f46e5;
+  --accent-hover:  #4338ca;
+  --accent-fg:     #ffffff;
+  --accent-soft:   rgba(79,70,229,0.10);
+  --accent-border: rgba(79,70,229,0.30);
+
+  --canvas-bg:   #f3f4f7;
+  --canvas-dot:  #d4d8e0;
+  --edge:        #c9cfd9;
+  --today:       #d97706;
+
+  --shadow-sm: 0 1px 2px rgba(16,24,40,0.06), 0 1px 3px rgba(16,24,40,0.08);
+  --shadow-md: 0 4px 12px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.05);
+  --shadow-lg: 0 12px 32px rgba(16,24,40,0.12), 0 4px 8px rgba(16,24,40,0.06);
+
+  color-scheme: light;
+}
+
+/* ── 暗色：正常 slate（略提亮、提对比，减轻费眼） ──────────────────────── */
+html.dark {
+  --s-950: #0d1016;
+  --s-900: #161a22;
+  --s-800: #232834;
+  --s-700: #333a48;
+  --s-600: #525a6a;
+  --s-500: #79818f;
+  --s-400: #9aa3b2;
+  --s-300: #c4cad5;
+  --s-200: #dadfe7;
+  --s-100: #e9ecf1;
+  --s-50:  #f4f6f9;
+
+  --bg:          #0d1016;
+  --surface:     #161a22;
+  --surface-2:   #1b2029;
+  --surface-3:   #232834;
+  --header-bg:   #11141b;
+  --border:      #262c38;
+  --border-soft: #1e232d;
+  --text:        #e4e7ee;
+  --text-2:      #b5bcc9;
+  --text-muted:  #79818f;
+  --text-faint:  #525a6a;
+
+  --accent:        #6366f1;
+  --accent-hover:  #818cf8;
+  --accent-fg:     #ffffff;
+  --accent-soft:   rgba(99,102,241,0.16);
+  --accent-border: rgba(99,102,241,0.35);
+
+  --canvas-bg:   #0d1016;
+  --canvas-dot:  #232a38;
+  --edge:        #2d3748;
+  --today:       #eab308;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 14px rgba(0,0,0,0.4);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,0.5);
+
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0f1117; color: #e2e8f0; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 
 #root { width: 100%; height: 100vh; display: flex; }
 
-.react-flow__background { background: #0f1117; }
-.react-flow__edge-path { stroke: #2d3748; stroke-width: 1.5; }
+/* 主题切换过渡（避免初次闪烁，仅对配色相关属性过渡） */
+body, .theme-anim,
+.react-flow__controls, .react-flow__minimap {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+/* ── 滚动条 ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--s-700);
+  border-radius: 8px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--s-600); }
+
+/* ── React Flow 覆盖 ────────────────────────────────────────────────────── */
+.react-flow__background { background: var(--canvas-bg); }
+.react-flow__edge-path { stroke: var(--edge); stroke-width: 1.5; }
+/* 连线不拦截指针事件：在连线密集区域也能直接拖拽平移画布 */
+.react-flow__edge, .react-flow__edge-path, .react-flow__edge-interaction { pointer-events: none !important; }
 .react-flow__handle { opacity: 0 !important; width: 1px; height: 1px; }
-.react-flow__controls { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px; box-shadow: none; }
-.react-flow__controls-button { background: #1a1f2e; border-bottom: 1px solid #2d3748; fill: #64748b; }
-.react-flow__controls-button:hover { background: #252d3d; fill: #94a3b8; }
-.react-flow__minimap { background: #1a1f2e !important; border: 1px solid #2d3748; border-radius: 8px; }
-.react-flow__minimap-mask { fill: #0f1117cc; }
+/* 悬浮的节点整体抬到最上层：hover 工具条不再被相邻节点压住/截断 */
+.react-flow__node:hover { z-index: 1000 !important; }
+/* 节点内容不裁剪，悬浮工具条可溢出显示 */
+.react-flow__node { overflow: visible; }
+.react-flow__controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  fill: var(--text-muted);
+}
+.react-flow__controls-button:hover { background: var(--surface-3); fill: var(--text); }
+.react-flow__minimap {
+  background: var(--surface) !important;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.react-flow__minimap-mask { fill: color-mix(in srgb, var(--bg) 80%, transparent); }

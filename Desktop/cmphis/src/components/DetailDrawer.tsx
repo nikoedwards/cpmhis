@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react'
-import { X, Edit2, Trash2, Check, ChevronRight } from 'lucide-react'
+import { X, Edit2, Trash2, Check, ChevronRight, BookOpen } from 'lucide-react'
 import { useStore } from '../store'
 import type { KnowledgeNode } from '../types'
+import BranchSelect from './BranchSelect'
+
+const DRAWER_W_KEY = 'cmphis_drawer_w'
+const MIN_W = 280
+const MAX_W = 760
+
+function loadDrawerWidth(): number {
+  const v = parseInt(localStorage.getItem(DRAWER_W_KEY) || '', 10)
+  return Number.isFinite(v) ? Math.min(MAX_W, Math.max(MIN_W, v)) : 320
+}
 
 function Field({ label, value, editing, onChange }: {
   label: string; value: string; editing: boolean; onChange: (v: string) => void
@@ -39,22 +49,56 @@ function TextAreaField({ label, value, editing, onChange }: {
   )
 }
 
-export default function DetailDrawer() {
+export default function DetailDrawer({ onViewWiki }: { onViewWiki?: () => void }) {
   const { nodes, selectedId, selectNode, updateNode, deleteNode } = useStore()
   const node = nodes.find(n => n.id === selectedId) ?? null
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<KnowledgeNode | null>(null)
+  const [width, setWidth] = useState<number>(loadDrawerWidth)
 
   useEffect(() => {
     setEditing(false)
     setDraft(node ? { ...node } : null)
   }, [selectedId])
 
+  useEffect(() => {
+    localStorage.setItem(DRAWER_W_KEY, String(width))
+  }, [width])
+
+  // 左侧手柄拖拽调整宽度（抽屉在右侧，宽度 = 视窗宽 - 鼠标 X）
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault()
+    const onMove = (ev: MouseEvent) => {
+      setWidth(Math.min(MAX_W, Math.max(MIN_W, window.innerWidth - ev.clientX)))
+    }
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
+
   if (!node || !draft) return null
 
   function patch<K extends keyof KnowledgeNode>(key: K, value: KnowledgeNode[K]) {
     setDraft(d => d ? { ...d, [key]: value } : d)
+  }
+
+  // 选择分支：设置该层级并清空更深层级，保持路径合法
+  function setBranchLevel(i: number, value: string) {
+    setDraft(d => {
+      if (!d) return d
+      const b = [...d.branches] as KnowledgeNode['branches']
+      b[i as 0|1|2|3|4|5] = value.trim() || undefined
+      for (let j = i + 1; j < 6; j++) b[j as 0|1|2|3|4|5] = undefined
+      return { ...d, branches: b }
+    })
   }
 
   function save() {
@@ -72,7 +116,23 @@ export default function DetailDrawer() {
   const branchLabels = ['一级', '二级', '三级', '四级', '五级', '六级']
 
   return (
-    <div className="w-[320px] flex-shrink-0 h-full border-l border-slate-800 bg-[#13161f] flex flex-col overflow-hidden">
+    <div
+      className="theme-anim flex-shrink-0 h-full flex flex-col overflow-hidden relative"
+      style={{ width, borderLeft: '1px solid var(--border)', background: 'var(--surface)' }}
+    >
+      {/* 左边缘拖拽手柄：调整抽屉宽度 */}
+      <div
+        onMouseDown={startResize}
+        title="拖动调整宽度"
+        className="group"
+        style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, cursor: 'col-resize', zIndex: 20 }}
+      >
+        <div
+          className="group-hover:opacity-100 opacity-0 transition-opacity"
+          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: 'var(--accent)' }}
+        />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
         <div className="flex items-center gap-1 text-[11px] text-slate-500 flex-wrap">
@@ -84,6 +144,9 @@ export default function DetailDrawer() {
           ))}
         </div>
         <div className="flex items-center gap-1">
+          {onViewWiki && (
+            <button onClick={onViewWiki} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400" title="在 Wiki 中查看详情"><BookOpen size={14} /></button>
+          )}
           {editing
             ? <button onClick={save} className="p-1.5 rounded hover:bg-emerald-900 text-emerald-400" title="保存"><Check size={14} /></button>
             : <button onClick={() => setEditing(true)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400" title="编辑"><Edit2 size={14} /></button>
@@ -109,15 +172,14 @@ export default function DetailDrawer() {
             <div key={i} className="flex items-center gap-2">
               <span className="text-[10px] text-slate-600 w-6">{bl}</span>
               {editing
-                ? <input
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-xs text-slate-200 outline-none focus:border-indigo-500"
-                    value={draft.branches[i] ?? ''}
-                    onChange={e => {
-                      const b = [...draft.branches] as KnowledgeNode['branches']
-                      b[i] = e.target.value || undefined
-                      patch('branches', b)
-                    }}
-                  />
+                ? <div className="flex-1">
+                    <BranchSelect
+                      parentPath={(draft.branches.slice(0, i).filter(Boolean) as string[])}
+                      value={draft.branches[i] ?? ''}
+                      onSelect={v => setBranchLevel(i, v)}
+                      autoFocus={false}
+                    />
+                  </div>
                 : <span className="text-xs text-slate-400">{draft.branches[i] || <span className="text-slate-700">—</span>}</span>
               }
             </div>

@@ -1,19 +1,74 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { useViewport, useReactFlow } from '@xyflow/react'
 import { useStore } from '../store'
-import { LAYOUT_CONSTANTS } from '../utils/layout'
+import { LAYOUT_CONSTANTS, buildTimeScale } from '../utils/layout'
 
-const { LEVEL_HEIGHT, LEAF_GAP, BASE_YEAR, PX_PER_YEAR, MAX_YEAR } = LAYOUT_CONSTANTS
+const { LEVEL_HEIGHT, LEAF_GAP } = LAYOUT_CONSTANTS
 
-// Choose a "nice" label step given how many years are visible
-function niceLabelStep(visibleYears: number): number {
-  if (visibleYears <= 5)   return 1
-  if (visibleYears <= 12)  return 2
-  if (visibleYears <= 25)  return 3
-  if (visibleYears <= 55)  return 5
-  if (visibleYears <= 110) return 10
-  if (visibleYears <= 220) return 20
-  return 50
+function fmtYear(y: number): string {
+  return y < 0 ? `前${-y}` : String(y)
+}
+
+// ── 自适应刻度：依据当前可视时间跨度，在 年/月/日 之间自动切换粒度 ──
+const NICE_YEAR_STEPS = [1, 2, 3, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000, 10000, 25000]
+const DAY_MS = 86400000
+
+function fracYearToDate(fy: number): Date {
+  const y = Math.floor(fy)
+  return new Date(new Date(y, 0, 1).getTime() + (fy - y) * 365 * DAY_MS)
+}
+function dateToFracYear(d: Date): number {
+  const y = d.getFullYear()
+  return y + (d.getTime() - new Date(y, 0, 1).getTime()) / (365 * DAY_MS)
+}
+
+interface TimeTick { tlY: number; label: string; minor: boolean }
+
+// top/bot：可视范围（年，可能为负=公元前）；H：标尺像素高；yearToTL：年→标尺Y
+function buildTimeTicks(top: number, bot: number, H: number, yearToTL: (y: number) => number): TimeTick[] {
+  const span = Math.max(1e-6, bot - top)
+  const pxPerYear = H / span
+  const minStep = 34 / pxPerYear           // 标签间至少 ~34px，反推所需的最小“年”步长
+  const within = (tlY: number) => tlY >= -18 && tlY <= H + 18
+  const out: TimeTick[] = []
+
+  if (minStep >= 1) {
+    // 年粒度
+    const step = NICE_YEAR_STEPS.find(s => s >= minStep) ?? 25000
+    const start = Math.ceil(top / step) * step
+    for (let y = start; y <= bot; y += step) {
+      const tlY = yearToTL(y)
+      if (within(tlY)) out.push({ tlY, label: fmtYear(y), minor: false })
+    }
+  } else if (minStep >= 1 / 12) {
+    // 月粒度（1/2/3/6 个月）
+    const sm = [1, 2, 3, 6].find(s => s >= minStep * 12) ?? 6
+    const startMi = Math.ceil(Math.floor(top * 12) / sm) * sm
+    const endMi = Math.ceil(bot * 12)
+    for (let mi = startMi; mi <= endMi; mi += sm) {
+      const y = Math.floor(mi / 12)
+      const m0 = ((mi % 12) + 12) % 12
+      const tlY = yearToTL(y + m0 / 12)
+      if (within(tlY)) out.push({ tlY, label: m0 === 0 ? fmtYear(y) : `${m0 + 1}月`, minor: m0 !== 0 })
+    }
+  } else {
+    // 日粒度（1/2/5/10/15 天）
+    const sd = [1, 2, 5, 10, 15].find(s => s >= minStep * 365) ?? 15
+    let d = fracYearToDate(top)
+    d.setHours(0, 0, 0, 0)
+    for (let guard = 0; guard < 4000 && dateToFracYear(d) <= bot; guard++) {
+      const tlY = yearToTL(dateToFracYear(d))
+      const day = d.getDate()
+      const mon = d.getMonth() + 1
+      if (within(tlY)) out.push({ tlY, label: day === 1 ? `${mon}月` : `${mon}/${day}`, minor: day !== 1 })
+      d = new Date(d.getTime() + sd * DAY_MS)
+      d.setHours(0, 0, 0, 0)
+    }
+  }
+
+  // 像素去重，避免重叠
+  out.sort((a, b) => a.tlY - b.tlY)
+  return out.filter((o, i, arr) => i === 0 || o.tlY - arr[i - 1].tlY >= 13)
 }
 
 export default function Timeline() {
@@ -39,6 +94,9 @@ export default function Timeline() {
     : 3
   const leafAreaStart = (maxDepth + 1) * LEVEL_HEIGHT + LEAF_GAP
 
+  // 与画布共用的密度自适应时间标尺（同一份 nodes → 同一标尺，刻度与节点对齐）
+  const scale = useMemo(() => buildTimeScale(nodes), [nodes])
+
   // ── Visible canvas Y range ──
   // screen_y = canvas_y * zoom + viewport.y  →  canvas_y = (screen_y - viewport.y) / zoom
   const visTop = (-viewport.y) / viewport.zoom
@@ -51,25 +109,20 @@ export default function Timeline() {
     return ((cy - visTop) / (visBot - visTop)) * containerH
   }
 
-  // year → canvas Y → timeline Y
+  // year → canvas Y → timeline Y（密度自适应映射）
   function yearToTL(year: number): number {
-    return c2t(leafAreaStart + (year - BASE_YEAR) * PX_PER_YEAR)
+    return c2t(leafAreaStart + scale.yearToOffset(year))
   }
 
-  // canvas Y → year
+  // canvas Y → year（密度自适应反映射）
   function canvasToYear(cy: number): number {
-    return BASE_YEAR + (cy - leafAreaStart) / PX_PER_YEAR
+    return scale.offsetToYear(cy - leafAreaStart)
   }
 
-  // ── Adaptive year labels ──
+  // ── 自适应刻度：可视跨度小→自动细分到月/日 ──
   const visTopYear = canvasToYear(visTop)
   const visBotYear = canvasToYear(visBot)
-  const step = niceLabelStep(Math.max(1, visBotYear - visTopYear))
-  const labelStart = Math.ceil(Math.max(BASE_YEAR - 10, visTopYear) / step) * step
-  const labelEnd   = Math.min(MAX_YEAR + 5, visBotYear)
-
-  const yearLabels: number[] = []
-  for (let y = labelStart; y <= labelEnd; y += step) yearLabels.push(y)
+  const ticks = buildTimeTicks(visTopYear, visBotYear, containerH, yearToTL)
 
   // ── Drag-to-scroll (panning the canvas) ──
   // Dragging TL down → show later content → canvas viewport.y decreases
@@ -98,7 +151,7 @@ export default function Timeline() {
     <div
       ref={containerRef}
       className="w-[64px] flex-shrink-0 h-full border-r border-slate-800/60 relative overflow-hidden select-none"
-      style={{ cursor: drag.current ? 'grabbing' : 'grab' }}
+      style={{ cursor: drag.current ? 'grabbing' : 'grab', background: 'var(--surface-2)' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -106,25 +159,24 @@ export default function Timeline() {
     >
       {/* Center guide */}
       <div className="absolute top-0 bottom-0 pointer-events-none"
-        style={{ left: 38, width: 1, background: '#1e2533' }} />
+        style={{ left: 38, width: 1, background: 'var(--border)' }} />
 
-      {/* Year labels — adapt to current zoom */}
-      {yearLabels.map(year => {
-        const tlY = yearToTL(year)
-        if (tlY < -16 || tlY > containerH + 4) return null
-        return (
-          <div
-            key={year}
-            className="absolute flex items-center pointer-events-none z-20"
-            style={{ top: Math.round(tlY) - 6, left: 0, right: 0 }}
+      {/* 刻度标签 — 年/月/日 自适应，主刻度更醒目 */}
+      {ticks.map(({ tlY, label, minor }, i) => (
+        <div
+          key={`${i}-${label}`}
+          className="absolute flex items-center pointer-events-none z-20"
+          style={{ top: Math.round(tlY) - 6, left: 0, right: 0 }}
+        >
+          <span
+            className="font-mono leading-none pl-1.5 w-9 text-right tabular-nums"
+            style={{ fontSize: minor ? 8 : 9, color: minor ? 'var(--text-muted)' : 'var(--text-2)', opacity: minor ? 0.7 : 1 }}
           >
-            <span className="text-[9px] text-slate-500 font-mono leading-none pl-1.5 w-9 text-right tabular-nums">
-              {year}
-            </span>
-            <div className="w-2 h-px ml-1" style={{ background: '#2d3748' }} />
-          </div>
-        )
-      })}
+            {label}
+          </span>
+          <div className="ml-1 h-px" style={{ width: minor ? 5 : 8, background: 'var(--edge)' }} />
+        </div>
+      ))}
 
       {/* Today marker line */}
       {(() => {
@@ -136,7 +188,7 @@ export default function Timeline() {
           <div
             key="today"
             className="absolute left-0 right-0 pointer-events-none z-30"
-            style={{ top: Math.round(tlY), borderTop: '1px dashed rgba(234,179,8,0.6)' }}
+            style={{ top: Math.round(tlY), borderTop: '1px dashed color-mix(in srgb, var(--today) 60%, transparent)' }}
           >
             <span style={{
               position: 'absolute',
@@ -144,10 +196,10 @@ export default function Timeline() {
               transform: 'translateX(-50%)',
               top: -13,
               fontSize: 8,
-              color: 'rgba(234,179,8,0.9)',
-              background: '#09090f',
+              color: 'var(--today)',
+              background: 'var(--surface-2)',
               padding: '1px 3px',
-              borderRadius: 2,
+              borderRadius: 3,
               fontFamily: 'monospace',
               whiteSpace: 'nowrap',
             }}>今</span>
@@ -155,8 +207,9 @@ export default function Timeline() {
         )
       })()}
 
-      {/* Node dots — only show nodes in visible time range */}
+      {/* Node dots — 仅时间带内的学科节点（史前主脊节点不在标尺上） */}
       {nodes.map(n => {
+        if (n.branches.filter(Boolean).length <= 1) return null
         if (n.timeYear < visTopYear - 2 || n.timeYear > visBotYear + 2) return null
         const tlY = yearToTL(n.timeYear)
         if (tlY < 0 || tlY > containerH) return null
@@ -171,7 +224,7 @@ export default function Timeline() {
               transform: 'translateX(-50%)',
               width: 6,
               height: 6,
-              backgroundColor: '#4f46e5',
+              backgroundColor: 'var(--accent)',
               opacity: 0.7,
               pointerEvents: 'auto',
               cursor: 'pointer',
@@ -180,7 +233,7 @@ export default function Timeline() {
             onClick={e => {
               e.stopPropagation()
               // Center canvas on this node
-              const cy = leafAreaStart + (n.timeYear - BASE_YEAR) * PX_PER_YEAR
+              const cy = leafAreaStart + scale.yearToOffset(n.timeYear)
               setViewport(
                 { x: viewport.x, y: -cy * viewport.zoom + containerH / 2, zoom: viewport.zoom },
                 { duration: 300 },
