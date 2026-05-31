@@ -1,5 +1,6 @@
 import { Network, Database, BookOpen, Sun, Moon } from 'lucide-react'
 import type { Theme } from '../theme'
+import GitHubSync from './GitHubSync'
 
 export type ViewId = 'canvas' | 'database' | 'wiki'
 
@@ -67,6 +68,9 @@ export default function NavBar({ view, setView, theme, onToggleTheme }: {
       </div>
 
       <div className="flex-1" />
+
+      {/* GitHub 同步 */}
+      <GitHubSync />
 
       {/* Theme toggle */}
       <button

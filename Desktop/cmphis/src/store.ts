@@ -117,6 +117,7 @@ interface AppState {
 
   // Actions
   loadData: () => Promise<void>
+  setAllNodes: (nodes: KnowledgeNode[]) => void
   addNode: (node: KnowledgeNode) => void
   updateNode: (id: string, patch: Partial<KnowledgeNode>) => void
   deleteNode: (id: string) => void
@@ -200,6 +201,12 @@ export const useStore = create<AppState>()(
       }
     },
 
+    // 整体替换节点（从 GitHub 拉取后使用）。可撤销；同时写入本地缓存与 data.xlsx（开发期）
+    setAllNodes: (nodes) => {
+      pushHistory()
+      set({ nodes })
+      saveNodes(nodes)
+    },
     addNode: (node) => {
       pushHistory()
       const nodes = [...get().nodes, node]

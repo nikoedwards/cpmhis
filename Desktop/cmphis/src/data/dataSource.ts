@@ -3,7 +3,8 @@ import type { KnowledgeNode } from '../types'
 import { nanoid } from '../utils/nanoid'
 
 // data.xlsx 作为数据库：开发期由 Vite 提供在 /data.xlsx，并通过 /api/save-data 写回。
-const DATA_URL = '/data.xlsx'
+// 部署到 GitHub Pages（子路径 /cpmhis/）时用 BASE_URL 拼出正确路径。
+const DATA_URL = `${import.meta.env.BASE_URL}data.xlsx`
 const SAVE_URL = '/api/save-data'
 
 function s(v: unknown): string {

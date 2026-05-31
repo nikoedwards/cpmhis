@@ -72,6 +72,8 @@ function xlsxStoragePlugin(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // 部署到 GitHub Pages 时站点在 https://<user>.github.io/cpmhis/ 子路径下
+  base: command === 'build' ? '/cpmhis/' : '/',
   plugins: [react(), tailwindcss(), xlsxStoragePlugin()],
-})
+}))
