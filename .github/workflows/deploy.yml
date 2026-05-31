@@ -31,7 +31,10 @@ jobs:
           enablement: true
       # 用 npm install 而非 npm ci：避免 Rolldown/原生二进制在 lockfile 跨平台时的严格校验失败
       - run: npm install --no-audit --no-fund
+      # 把仓库 Secret GH_SYNC_TOKEN 注入构建，使部署出去的页面自带同步令牌（不进源码）
       - run: npm run build
+        env:
+          VITE_GH_TOKEN: ${{ secrets.GH_SYNC_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: Desktop/cmphis/dist

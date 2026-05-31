@@ -3,7 +3,7 @@ import { Cloud, CloudUpload, CloudDownload, Check, AlertTriangle, Loader2, Exter
 import { useStore } from '../store'
 import {
   getToken, setToken, pushToGitHub, pullFromGitHub, getGitHubConfig, nodesSignature,
-  getSyncBaseline, setSyncBaseline,
+  getSyncBaseline, setSyncBaseline, hasBuiltinToken,
 } from '../data/githubSync'
 
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err' | 'pending'; msg: string }
@@ -13,15 +13,24 @@ const AUTO_DELAY = 30_000 // 变更后 30s 自动提交
 
 export default function GitHubSync() {
   const [open, setOpen] = useState(false)
-  const [token, setTok] = useState(getToken())
-  const [auto, setAuto] = useState<boolean>(() => localStorage.getItem(AUTO_KEY) === 'true')
+  // 输入框只反映"浏览器里手动填的"令牌；内置令牌不回填到输入框
+  const [token, setTok] = useState(() => localStorage.getItem('cmphis_gh_token') || '')
+  const builtin = hasBuiltinToken()
+  const [auto, setAuto] = useState<boolean>(() => {
+    const v = localStorage.getItem(AUTO_KEY)
+    if (v === null) return builtin // 内置令牌时默认开启自动同步
+    return v === 'true'
+  })
   const [status, setStatus] = useState<Status>({ kind: 'idle', msg: '' })
   const wrapRef = useRef<HTMLDivElement>(null)
 
   const setAllNodes = useStore(s => s.setAllNodes)
   const nodes = useStore(s => s.nodes)
+  const branchOrder = useStore(s => s.branchOrder)
+  const branchRegistry = useStore(s => s.branchRegistry)
 
-  const hasToken = !!token.trim()
+  const meta = { branchOrder, branchRegistry }
+  const hasToken = !!token.trim() || builtin
   const cfg = getGitHubConfig()
 
   // 自动同步用的引用（基线签名用模块级共享，loadData/拉取都会更新）
@@ -42,8 +51,10 @@ export default function GitHubSync() {
 
   async function runPush(isAuto: boolean) {
     setStatus({ kind: 'busy', msg: isAuto ? '正在自动提交…' : '正在提交…' })
-    const sig = nodesSignature(useStore.getState().nodes)
-    const r = await pushToGitHub(useStore.getState().nodes)
+    const st = useStore.getState()
+    const curMeta = { branchOrder: st.branchOrder, branchRegistry: st.branchRegistry }
+    const sig = nodesSignature(st.nodes, curMeta)
+    const r = await pushToGitHub(st.nodes, curMeta)
     if (r.ok) setSyncBaseline(sig)
     setStatus({ kind: r.ok ? 'ok' : 'err', msg: (isAuto ? '自动同步：' : '') + r.message })
   }
@@ -53,20 +64,20 @@ export default function GitHubSync() {
     setStatus({ kind: 'busy', msg: '正在拉取…' })
     const r = await pullFromGitHub()
     if (r.ok && r.nodes) {
-      setSyncBaseline(nodesSignature(r.nodes)) // 拉取后立即更新基线，避免触发自动回推
-      setAllNodes(r.nodes)
+      setSyncBaseline(nodesSignature(r.nodes, r.meta ?? null)) // 拉取后立即更新基线，避免触发自动回推
+      setAllNodes(r.nodes, r.meta ?? null)
       setStatus({ kind: 'ok', msg: `${r.message}（${r.nodes.length} 节点）` })
     } else {
       setStatus({ kind: 'err', msg: r.message })
     }
   }
 
-  // 自动同步：检测到内容变更后防抖 30s 提交
+  // 自动同步：检测到内容变更（节点 / 分支排序 / 分支注册表）后防抖 30s 提交
   useEffect(() => {
     if (!auto || !hasToken) { clearTimeout(timerRef.current); return }
     const base = getSyncBaseline()
     if (base === null) return // 数据尚未完成首次加载（基线未建立）
-    const sig = nodesSignature(nodes)
+    const sig = nodesSignature(nodes, meta)
     if (sig === base) return  // 内容无变化
 
     clearTimeout(timerRef.current)
@@ -74,7 +85,7 @@ export default function GitHubSync() {
     timerRef.current = setTimeout(() => { void runPush(true) }, AUTO_DELAY)
     return () => clearTimeout(timerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, auto, hasToken])
+  }, [nodes, branchOrder, branchRegistry, auto, hasToken])
 
   return (
     <div ref={wrapRef} className="relative">
@@ -107,12 +118,14 @@ export default function GitHubSync() {
           </div>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>个人访问令牌 (PAT)</span>
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              个人访问令牌 (PAT){builtin && <span style={{ color: '#22c55e' }}> · 已内置部署令牌</span>}
+            </span>
             <input
               type="password"
               value={token}
               onChange={e => saveToken(e.target.value)}
-              placeholder="ghp_… 或 github_pat_…"
+              placeholder={builtin ? '已内置，留空即用部署令牌' : 'ghp_… 或 github_pat_…'}
               className="px-2 py-1.5 rounded-md text-[12px] outline-none"
               style={{ background: 'var(--surface-3)', color: 'var(--text)', border: '1px solid var(--border)' }}
             />

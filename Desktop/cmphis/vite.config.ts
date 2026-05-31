@@ -38,7 +38,10 @@ function xlsxStoragePlugin(): Plugin {
         req.on('data', (chunk) => { body += chunk })
         req.on('end', () => {
           try {
-            const nodes: NodeLike[] = JSON.parse(body || '[]')
+            const parsed = JSON.parse(body || '{}')
+            // 兼容旧格式（直接是节点数组）与新格式（{ nodes, meta }）
+            const nodes: NodeLike[] = Array.isArray(parsed) ? parsed : (parsed.nodes ?? [])
+            const meta = Array.isArray(parsed) ? null : (parsed.meta ?? null)
             const rows = nodes.map((n) => ({
               一级分支: n.branches?.[0] ?? '',
               二级分支: n.branches?.[1] ?? '',
@@ -56,6 +59,10 @@ function xlsxStoragePlugin(): Plugin {
             const ws = XLSX.utils.json_to_sheet(rows, { header: COLUMNS })
             const wb = XLSX.utils.book_new()
             XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
+            if (meta) {
+              const mws = XLSX.utils.aoa_to_sheet([[JSON.stringify(meta)]])
+              XLSX.utils.book_append_sheet(wb, mws, 'meta')
+            }
             const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
             writeFileSync(DATA_FILE, buf)
             res.statusCode = 200

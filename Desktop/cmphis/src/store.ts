@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import type { KnowledgeNode } from './types'
-import { loadNodesFromXlsx, saveNodesToXlsx } from './data/dataSource'
+import { loadAllFromXlsx, saveNodesToXlsx, type SyncMeta } from './data/dataSource'
 import { getToken, isAutoSyncOn, pullFromGitHub, nodesSignature, setSyncBaseline } from './data/githubSync'
 
 const STORAGE_KEY           = 'cmphis_nodes'
@@ -71,12 +71,12 @@ function loadBool(key: string, def: boolean): boolean {
   return v === null ? def : v === 'true'
 }
 
-// 写入：缓存到 localStorage + 防抖写回 data.xlsx
+// 写入：缓存到 localStorage + 防抖写回 data.xlsx（含分支排序/注册表元数据）
 let saveTimer: ReturnType<typeof setTimeout> | undefined
-function saveNodes(nodes: KnowledgeNode[]) {
+function saveNodes(nodes: KnowledgeNode[], meta?: SyncMeta) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes)) } catch {}
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => { void saveNodesToXlsx(nodes) }, 500)
+  saveTimer = setTimeout(() => { void saveNodesToXlsx(nodes, meta ?? null) }, 500)
 }
 
 function saveCollapsed(key: string, s: Set<string>) {
@@ -118,7 +118,7 @@ interface AppState {
 
   // Actions
   loadData: () => Promise<void>
-  setAllNodes: (nodes: KnowledgeNode[]) => void
+  setAllNodes: (nodes: KnowledgeNode[], meta?: SyncMeta | null) => void
   addNode: (node: KnowledgeNode) => void
   updateNode: (id: string, patch: Partial<KnowledgeNode>) => void
   deleteNode: (id: string) => void
@@ -175,6 +175,11 @@ export const useStore = create<AppState>()(
     set({ past: next, future: [] })
   }
 
+  // 当前元数据（分支排序 + 注册表），随节点一起持久化
+  const metaOf = (): SyncMeta => ({ branchOrder: get().branchOrder, branchRegistry: get().branchRegistry })
+  // 写回 data.xlsx（节点 + 元数据）
+  const persist = (nodes: KnowledgeNode[]) => saveNodes(nodes, metaOf())
+
   return {
     nodes: loadCachedNodes(),
     selectedId: null,
@@ -193,11 +198,19 @@ export const useStore = create<AppState>()(
     // 加载数据：开启自动同步且配置了令牌时优先从 GitHub 拉取最新（跨设备无缝），
     // 否则/失败则读打包的 data.xlsx，再失败则用本地缓存。
     loadData: async () => {
+      // 应用元数据（分支排序 + 注册表），随节点一起恢复
+      const applyMeta = (meta: SyncMeta | null) => {
+        if (!meta) return
+        set({ branchOrder: meta.branchOrder ?? {}, branchRegistry: meta.branchRegistry ?? [] })
+        saveBranchOrder(meta.branchOrder ?? {})
+        saveBranchRegistry(meta.branchRegistry ?? [])
+      }
       if (isAutoSyncOn() && getToken()) {
         try {
           const r = await pullFromGitHub()
           if (r.ok && r.nodes) {
-            setSyncBaseline(nodesSignature(r.nodes))
+            applyMeta(r.meta ?? null)
+            setSyncBaseline(nodesSignature(r.nodes, r.meta ?? null))
             set({ nodes: r.nodes, dataLoaded: true })
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(r.nodes)) } catch {}
             return
@@ -207,35 +220,40 @@ export const useStore = create<AppState>()(
         }
       }
       try {
-        const nodes = await loadNodesFromXlsx()
-        setSyncBaseline(nodesSignature(nodes))
+        const { nodes, meta } = await loadAllFromXlsx()
+        applyMeta(meta)
+        setSyncBaseline(nodesSignature(nodes, meta))
         set({ nodes, dataLoaded: true })
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes)) } catch {}
       } catch (e) {
         console.warn('[cmphis] 加载 data.xlsx 失败，使用本地缓存：', e)
         const cached = get().nodes
-        setSyncBaseline(nodesSignature(cached))
+        setSyncBaseline(nodesSignature(cached, metaOf()))
         set({ dataLoaded: true })
       }
     },
 
-    // 整体替换节点（从 GitHub 拉取后使用）。可撤销；同时写入本地缓存与 data.xlsx（开发期）
-    setAllNodes: (nodes) => {
+    // 整体替换文档（从 GitHub 拉取后使用）。可撤销；同时写入本地缓存与 data.xlsx（开发期）
+    setAllNodes: (nodes, meta) => {
       pushHistory()
-      set({ nodes })
-      saveNodes(nodes)
+      const branchOrder = meta?.branchOrder ?? get().branchOrder
+      const branchRegistry = meta?.branchRegistry ?? get().branchRegistry
+      set({ nodes, branchOrder, branchRegistry })
+      saveBranchOrder(branchOrder)
+      saveBranchRegistry(branchRegistry)
+      saveNodes(nodes, { branchOrder, branchRegistry })
     },
     addNode: (node) => {
       pushHistory()
       const nodes = [...get().nodes, node]
       set({ nodes })
-      saveNodes(nodes)
+      persist(nodes)
     },
     updateNode: (id, patch) => {
       pushHistory(`edit:${id}`)
       const nodes = get().nodes.map(n => n.id === id ? { ...n, ...patch } : n)
       set({ nodes })
-      saveNodes(nodes)
+      persist(nodes)
     },
     deleteNode: (id) => {
       pushHistory()
@@ -243,7 +261,7 @@ export const useStore = create<AppState>()(
       const hiddenNodes = new Set(get().hiddenNodes)
       hiddenNodes.delete(id)
       set({ nodes, hiddenNodes, selectedId: get().selectedId === id ? null : get().selectedId })
-      saveNodes(nodes)
+      persist(nodes)
       saveCollapsed(HIDDEN_KEY, hiddenNodes)
     },
     deleteBranch: (pathPrefix) => {
@@ -262,7 +280,7 @@ export const useStore = create<AppState>()(
       // 同步注册表：移除该分支及其所有子孙
       const branchRegistry = get().branchRegistry.filter(k => !matchesPrefix(k.split('///')))
       set({ nodes, branchRegistry })
-      saveNodes(nodes)
+      persist(nodes)
       saveBranchRegistry(branchRegistry)
     },
     renameBranch: (pathPrefix, newLabel) => {
@@ -292,7 +310,7 @@ export const useStore = create<AppState>()(
         return segs.join('///')
       })
       set({ nodes, branchRegistry })
-      saveNodes(nodes)
+      persist(nodes)
       saveBranchRegistry(branchRegistry)
     },
     addBranch: (parentPath, label) => {
@@ -311,6 +329,7 @@ export const useStore = create<AppState>()(
       const next = [...reg, key]
       set({ branchRegistry: next })
       saveBranchRegistry(next)
+      persist(get().nodes) // 写回 data.xlsx 的 meta（分支变更也要进库）
     },
     selectNode: (id) => set({ selectedId: id }),
 
@@ -352,6 +371,7 @@ export const useStore = create<AppState>()(
       const next = { ...get().branchOrder, [parentKey]: orderedLabels }
       set({ branchOrder: next })
       saveBranchOrder(next)
+      persist(get().nodes) // 排序变更也写回 data.xlsx 的 meta
     },
 
     setHoveredId: (id) => { if (get().hoveredId !== id) set({ hoveredId: id }) },
@@ -375,7 +395,7 @@ export const useStore = create<AppState>()(
         past: past.slice(0, -1),
         future: [cur, ...future].slice(0, HISTORY_LIMIT),
       })
-      saveNodes(prev.nodes)
+      persist(prev.nodes)
       saveBranchOrder(prev.branchOrder)
       saveBranchRegistry(prev.branchRegistry ?? [])
       saveCollapsed(HIDDEN_KEY, new Set(prev.hiddenNodes))
@@ -395,7 +415,7 @@ export const useStore = create<AppState>()(
         past: [...past, cur].slice(-HISTORY_LIMIT),
         future: future.slice(1),
       })
-      saveNodes(nextSnap.nodes)
+      persist(nextSnap.nodes)
       saveBranchOrder(nextSnap.branchOrder)
       saveBranchRegistry(nextSnap.branchRegistry ?? [])
       saveCollapsed(HIDDEN_KEY, new Set(nextSnap.hiddenNodes))
@@ -403,7 +423,7 @@ export const useStore = create<AppState>()(
 
     clearAll: () => {
       pushHistory()
-      saveNodes([])
+      saveNodes([], { branchOrder: {}, branchRegistry: [] })
       saveCollapsed(COLLAPSED_KEY, new Set())
       saveCollapsed(SIDEBAR_COLLAPSED_KEY, new Set())
       saveCollapsed(HIDDEN_KEY, new Set())
