@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import type { KnowledgeNode } from './types'
 import { loadNodesFromXlsx, saveNodesToXlsx } from './data/dataSource'
+import { getToken, isAutoSyncOn, pullFromGitHub, nodesSignature, setSyncBaseline } from './data/githubSync'
 
 const STORAGE_KEY           = 'cmphis_nodes'
 const COLLAPSED_KEY         = 'cmphis_collapsed'
@@ -189,14 +190,31 @@ export const useStore = create<AppState>()(
     past: [],
     future: [],
 
-    // 从 data.xlsx 加载数据（数据源），失败则保留缓存
+    // 加载数据：开启自动同步且配置了令牌时优先从 GitHub 拉取最新（跨设备无缝），
+    // 否则/失败则读打包的 data.xlsx，再失败则用本地缓存。
     loadData: async () => {
+      if (isAutoSyncOn() && getToken()) {
+        try {
+          const r = await pullFromGitHub()
+          if (r.ok && r.nodes) {
+            setSyncBaseline(nodesSignature(r.nodes))
+            set({ nodes: r.nodes, dataLoaded: true })
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(r.nodes)) } catch {}
+            return
+          }
+        } catch (e) {
+          console.warn('[cmphis] 从 GitHub 拉取失败，回退到 data.xlsx：', e)
+        }
+      }
       try {
         const nodes = await loadNodesFromXlsx()
+        setSyncBaseline(nodesSignature(nodes))
         set({ nodes, dataLoaded: true })
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes)) } catch {}
       } catch (e) {
         console.warn('[cmphis] 加载 data.xlsx 失败，使用本地缓存：', e)
+        const cached = get().nodes
+        setSyncBaseline(nodesSignature(cached))
         set({ dataLoaded: true })
       }
     },

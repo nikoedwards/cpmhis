@@ -65,6 +65,16 @@ export function nodesSignature(nodes: KnowledgeNode[]): string {
   ]))
 }
 
+// 同步基线：当前"已知/已同步"的内容签名。loadData / push / pull 后更新，
+// 自动同步据此判断是否真的有用户改动（避免加载/拉取后误触发回推）。
+let _baseline: string | null = null
+export function getSyncBaseline(): string | null { return _baseline }
+export function setSyncBaseline(sig: string | null): void { _baseline = sig }
+
+export function isAutoSyncOn(): boolean {
+  return localStorage.getItem('cmphis_gh_auto') === 'true'
+}
+
 function apiUrl(cfg: GitHubConfig): string {
   return `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${cfg.path}`
 }

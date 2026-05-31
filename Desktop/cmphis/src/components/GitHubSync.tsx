@@ -3,6 +3,7 @@ import { Cloud, CloudUpload, CloudDownload, Check, AlertTriangle, Loader2, Exter
 import { useStore } from '../store'
 import {
   getToken, setToken, pushToGitHub, pullFromGitHub, getGitHubConfig, nodesSignature,
+  getSyncBaseline, setSyncBaseline,
 } from '../data/githubSync'
 
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err' | 'pending'; msg: string }
@@ -23,10 +24,8 @@ export default function GitHubSync() {
   const hasToken = !!token.trim()
   const cfg = getGitHubConfig()
 
-  // 自动同步用的引用
+  // 自动同步用的引用（基线签名用模块级共享，loadData/拉取都会更新）
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const lastSigRef = useRef<string | null>(null)   // 上次"已同步/已知"的内容签名
-  const initRef = useRef(false)                     // 是否已完成首次数据加载基线
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -45,16 +44,16 @@ export default function GitHubSync() {
     setStatus({ kind: 'busy', msg: isAuto ? '正在自动提交…' : '正在提交…' })
     const sig = nodesSignature(useStore.getState().nodes)
     const r = await pushToGitHub(useStore.getState().nodes)
-    if (r.ok) lastSigRef.current = sig
+    if (r.ok) setSyncBaseline(sig)
     setStatus({ kind: r.ok ? 'ok' : 'err', msg: (isAuto ? '自动同步：' : '') + r.message })
   }
 
-  async function doPull() {
-    if (!confirm('从 GitHub 拉取将覆盖当前数据（可撤销）。继续？')) return
+  async function doPull(silent = false) {
+    if (!silent && !confirm('从 GitHub 拉取将覆盖当前数据（可撤销）。继续？')) return
     setStatus({ kind: 'busy', msg: '正在拉取…' })
     const r = await pullFromGitHub()
     if (r.ok && r.nodes) {
-      lastSigRef.current = nodesSignature(r.nodes) // 拉取后立即更新基线，避免触发自动回推
+      setSyncBaseline(nodesSignature(r.nodes)) // 拉取后立即更新基线，避免触发自动回推
       setAllNodes(r.nodes)
       setStatus({ kind: 'ok', msg: `${r.message}（${r.nodes.length} 节点）` })
     } else {
@@ -64,14 +63,11 @@ export default function GitHubSync() {
 
   // 自动同步：检测到内容变更后防抖 30s 提交
   useEffect(() => {
-    const sig = nodesSignature(nodes)
-    // 首次拿到数据时建立基线，不触发提交
-    if (!initRef.current) {
-      if (nodes.length > 0) { initRef.current = true; lastSigRef.current = sig }
-      return
-    }
     if (!auto || !hasToken) { clearTimeout(timerRef.current); return }
-    if (sig === lastSigRef.current) return // 内容无变化
+    const base = getSyncBaseline()
+    if (base === null) return // 数据尚未完成首次加载（基线未建立）
+    const sig = nodesSignature(nodes)
+    if (sig === base) return  // 内容无变化
 
     clearTimeout(timerRef.current)
     setStatus({ kind: 'pending', msg: '检测到变更，30s 后自动同步…' })
@@ -151,7 +147,7 @@ export default function GitHubSync() {
               <CloudUpload size={13} /> 立即同步
             </button>
             <button
-              onClick={doPull}
+              onClick={() => doPull()}
               disabled={status.kind === 'busy'}
               className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-40"
               style={{ background: 'var(--surface-3)', color: 'var(--text-2)' }}
