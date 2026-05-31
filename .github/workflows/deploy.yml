@@ -25,7 +25,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
+      # 自动启用 Pages（source = GitHub Actions），免去手动到 Settings 配置
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      # 用 npm install 而非 npm ci：避免 Rolldown/原生二进制在 lockfile 跨平台时的严格校验失败
+      - run: npm install --no-audit --no-fund
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
